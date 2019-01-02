@@ -1,0 +1,254 @@
+#pragma ident "%Z% FileName: $RCSfile: YmRevMapTrLeg.pc,v $ Version: $Revision: 1.6 $ Date: $Date: 2009/02/20 13:10:57 $ %Z %"
+
+//## Module: YmRevMapTrLeg
+//SFD
+//  Name:    YmRevMapTrLeg.cpp
+//  Author:  JM. Grugeaux
+//  Desc:    traitement de la liste des code tarifs
+//EFD
+
+
+using namespace std;
+
+//standard includes
+#include <iterator>
+#include </usr/lib/oracle/11.2/client64/precomp/public/sqlca.h>
+
+//application includes
+#include <YmRevGlobal.h>
+#include <YmRevMapTrLeg.h>
+
+//## Configuration du contexte de base JRO IC SRO DT 23805
+extern sql_context ctxRevMain;
+EXEC SQL CONTEXT USE :ctxRevMain;
+
+YmRevMapTrLeg::YmRevMapTrLeg()
+  {
+  }
+
+YmRevMapTrLeg::~YmRevMapTrLeg()
+  {
+    _MapTrLeg.clear();
+  }
+
+int YmRevMapTrLeg::init() //initialisation de la map a partir de la base
+                                    // 0 = OK, -1 = pas trouve
+    {
+    int iRet=0;
+    int iNb=0;
+    EXEC SQL BEGIN DECLARE SECTION;
+       varchar vcLegOrig[6];
+       varchar vcLegDest[6]; //MHUE 11/09/06
+       char cDateLeg[11];
+       char cDateTranche[11];
+       int iTrancheNo;
+       short iTgvFlag;
+    EXEC SQL END DECLARE SECTION;
+    
+    EXEC SQL WHENEVER SQLERROR DO sql_error((char *)"liste des tranches legs",1);
+    EXEC SQL DECLARE cMapTrLeg CURSOR FOR
+         SELECT tranche_no, to_char (dpt_date_leg, 'dd/mm/yyyy'), leg_orig, leg_dest, //MHUE 11/09/06
+                            to_char (dpt_date_tr, 'dd/mm/yyyy'), tgv_flag FROM rev_tranches_legs;
+    EXEC SQL OPEN cMapTrLeg ;
+
+    EXEC SQL WHENEVER NOT FOUND DO break;
+    string skey1;
+    string skey2;
+    TrLeg  aTrLeg;
+    char ctrno[10];
+    while(1)
+       {
+       EXEC SQL FETCH cMapTrLeg INTO :iTrancheNo, :cDateLeg, :vcLegOrig, :vcLegDest, :cDateTranche, :iTgvFlag; //MHUE 11/09/06
+       cDateLeg[10] = 0;
+       cDateTranche[10] = 0;
+       iNb++;
+       vcLegOrig.arr[vcLegOrig.len] = '\0';
+       vcLegDest.arr[vcLegDest.len] = '\0'; //MHUE 11/09/06
+       sprintf (ctrno, "%d", iTrancheNo);
+       skey1 = ctrno;
+       skey1 += (char*)vcLegOrig.arr; 
+//MHUE 11/09/06
+       skey1 += (char*)"-----"; 
+//MHUE 11/09/06
+       skey1 += cDateLeg;
+       strcpy (aTrLeg.dpt_date_tr, cDateTranche);
+       aTrLeg.indic_tgv = iTgvFlag;
+       _MapTrLeg[skey1] = aTrLeg;
+//MHUE 11/09/06
+       skey2 = ctrno;
+       skey2 += (char*)"-----"; 
+       skey2 += (char*)vcLegDest.arr; 
+       skey2 += cDateLeg;
+       _MapTrLeg[skey2] = aTrLeg;
+//MHUE 11/09/06
+       }
+    EXEC SQL CLOSE cMapTrLeg ;
+    if  (iNb==0) 
+        iRet=-1;
+    else
+        iRet=0;
+    return iRet;
+    }
+
+//MHUE 11/09/06
+TrLeg YmRevMapTrLeg::InMap (int tranche_no, string leg_orig, string leg_dest, char* date_depart) //retourne une structure TrLeg
+                        // Si non trouve renvoi un TrLeg Dummy : dpt_date_tr = "01/01/2000", indic_tgv = 2;
+   {
+    MapTrLegType::iterator iPos1;
+    MapTrLegType::iterator iPos2;
+
+    string skey;
+    char ctrno[10];
+    sprintf (ctrno, "%d", tranche_no);
+    skey = ctrno;
+    skey += leg_orig;
+    skey += (char *)"-----";
+    skey += date_depart;
+    iPos1 = _MapTrLeg.find (skey);
+    skey = ctrno;
+    skey += (char *)"-----";
+    skey += leg_dest;
+    skey += date_depart;
+    iPos2 = _MapTrLeg.find (skey);
+
+    //JMG 27/06/07, pb si troncon entierement apres minuit, ano 262360
+    if ((iPos1 != _MapTrLeg.end()) && (iPos2 == _MapTrLeg.end()))
+    {// on essaie le troncon arrive avec le lendemain de la date de depart indique
+      string sDate (date_depart);
+      YmDate dtArr (sDate);
+      dtArr += 1;
+      char date_demain[11];
+      dtArr.PrintFrench(date_demain);
+      skey = ctrno;
+      skey += (char *)"-----";
+      skey += leg_dest;
+      skey += date_demain;
+      iPos2 = _MapTrLeg.find (skey);
+      if (iPos2 != _MapTrLeg.end())
+      {
+        TrLeg trl = (TrLeg)iPos2->second;
+        if (strcmp (trl.dpt_date_tr, date_depart))
+          iPos2 = _MapTrLeg.end();
+      }
+    }
+    if ((iPos1 == _MapTrLeg.end()) || (iPos2 == _MapTrLeg.end()))
+    {
+      TrLeg DummyTrLeg;
+      strcpy (DummyTrLeg.dpt_date_tr, "01/01/2000");
+      DummyTrLeg.indic_tgv = 2;
+      return DummyTrLeg;
+    }
+
+    return (TrLeg)iPos1->second;
+    }
+//MHUE 11/09/06
+
+
+//MHUE 11/09/06
+//JRO ICSRO DT 23805 Surcharge de la fonction InMaP : Ajout is Train
+TrLeg YmRevMapTrLeg::InMap (int tranche_no, string leg_orig, string leg_dest, char* date_depart, int isTrain) //retourne une structure TrLeg
+                        // Si non trouve renvoi un TrLeg Dummy : dpt_date_tr = "01/01/2000", indic_tgv = 2;
+   {
+   //JRO IC SRO DT 23805 - Si le numéro de tranche est un numéro de train, on renvoie un DummyTrLeg : le segment n'a toujours pas été collecté 
+   if (isTrain == 1)
+    {
+	
+      TrLeg DummyTrLeg;
+      strcpy (DummyTrLeg.dpt_date_tr, date_depart);
+      DummyTrLeg.indic_tgv = 2;
+      return DummyTrLeg;
+    }
+   
+    MapTrLegType::iterator iPos1;
+    MapTrLegType::iterator iPos2;
+
+    string skey;
+    char ctrno[10];
+    sprintf (ctrno, "%d", tranche_no);
+    skey = ctrno;
+    skey += leg_orig;
+    skey += (char *)"-----";
+    skey += date_depart;
+    iPos1 = _MapTrLeg.find (skey);
+    skey = ctrno;
+    skey += (char *)"-----";
+    skey += leg_dest;
+    skey += date_depart;
+    iPos2 = _MapTrLeg.find (skey);
+
+    //JMG 27/06/07, pb si troncon entierement apres minuit, ano 262360
+    if ((iPos1 != _MapTrLeg.end()) && (iPos2 == _MapTrLeg.end()))
+    {// on essaie le troncon arrive avec le lendemain de la date de depart indique
+      string sDate (date_depart);
+      YmDate dtArr (sDate);
+      dtArr += 1;
+      char date_demain[11];
+      dtArr.PrintFrench(date_demain);
+      skey = ctrno;
+      skey += (char *)"-----";
+      skey += leg_dest;
+      skey += date_demain;
+      iPos2 = _MapTrLeg.find (skey);
+      if (iPos2 != _MapTrLeg.end())
+      {
+        TrLeg trl = (TrLeg)iPos2->second;
+        if (strcmp (trl.dpt_date_tr, date_depart))
+          iPos2 = _MapTrLeg.end();
+      }
+    }
+    if ((iPos1 == _MapTrLeg.end()) || (iPos2 == _MapTrLeg.end()))
+    {
+      TrLeg DummyTrLeg;
+      strcpy (DummyTrLeg.dpt_date_tr, "01/01/2000");
+      DummyTrLeg.indic_tgv = 2;
+      return DummyTrLeg;
+    }
+
+    return (TrLeg)iPos1->second;
+    }
+//MHUE 11/09/06
+//JRO IC SRO - ANO 87361 - getNoTranche est mtn une méthode de YmRevMapTrLeg (anciennement YmRevMapTypeEquipement)
+int YmRevMapTrLeg::getNoTranche(int NoTrain, char dpt_date[11])  
+{
+	
+
+  EXEC SQL BEGIN DECLARE SECTION;
+	char cdatedpt_date[11];
+	int intNoTrain;
+	int notranche = 1000000000;
+	int notranchefetch ;
+
+EXEC SQL END DECLARE SECTION;
+
+  intNoTrain = NoTrain;
+  strncpy(cdatedpt_date, dpt_date, 11);
+
+	//EXEC SQL WHENEVER SQLERROR DO sql_error((char *)"Erreur Recuperation no_tranche",0);
+	EXEC SQL DECLARE cMapTrancheNo CURSOR FOR
+		SELECT  DISTINCT  TRANCHE_NO  FROM REV_TRANCHES_LEGS WHERE TRAIN_NO = :intNoTrain AND DPT_DATE = TO_DATE(:cdatedpt_date,'dd/mm/yyyy');
+ 
+	EXEC SQL OPEN cMapTrancheNo;
+    EXEC SQL WHENEVER NOT FOUND DO break;
+	
+    while(1)
+       {
+		   EXEC SQL FETCH cMapTrancheNo INTO :notranchefetch;
+		   
+		   if (notranchefetch < notranche)
+		   {
+				notranche = notranchefetch;
+		   }
+			
+		}   
+	   
+    EXEC SQL CLOSE cMapTrancheNo ;
+	
+	//Si le train n'est pas en base, on met le no de tranche à 0.
+	if (notranche == 1000000000)
+	{
+		
+		notranche = 0;
+	}
+
+	return notranche;
+}

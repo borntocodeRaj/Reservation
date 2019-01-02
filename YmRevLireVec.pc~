@@ -1,0 +1,954 @@
+//---------------------------------------------------------------------------------------------------------
+// Lecture des donness RESAVEN placee dans le vecteur par EcrireVec
+// --------------------------------------------------------------------------------------------------------
+
+using namespace std;
+
+#include <iostream>
+#include </usr/lib/oracle/11.2/client64/precomp/public/sqlca.h>
+#include <unistd.h>
+#include <YmRevGlobal.h>
+#include <YmRevLireVec.h>
+
+//## Configuration du contexte de base JRO IC SRO DT 23805
+extern sql_context ctxRevMain;
+EXEC SQL CONTEXT USE :ctxRevMain;
+
+EXEC SQL BEGIN DECLARE SECTION;
+
+#define MAX_NBTCN_IN_BUF 1000
+#define MAX_NBPAP_IN_BUF 2000
+#define MAX_NBSEG_IN_BUF 4000
+
+int nbTcnInBuf;
+int nbPaPaInBuf;
+int nbSegInBuf;
+
+//JRO IC SRO DT23805 - 
+int NoTranche_db;
+
+
+struct REV_SEGMENTS {
+        int tcn_number;
+        char date_paiement[11];
+        varchar tarif_type[7];
+        varchar class_of_service[3];
+		//DM7978 - JLA - Ajout du palier
+		int num_palier;
+        int pp_num;
+        int segment_num;
+        varchar origine_seg[6];
+        varchar destination_seg[6];
+        int longueur_seg;
+        char date_resa[11];
+        varchar canal_reservation[4];
+        int nest_level;
+        int train_no;
+        int tranche_no;
+        varchar tranche_carrier_code[3];
+        char date_depart[11];
+        int heure_depart;
+        char date_arrive[11];
+        int heure_arrive;
+        int niveau_social;
+        int montant_resa;
+        int montant_supplement;
+        varchar type_equipement[3];
+        int revenu;
+        char date_max_depart[11];
+        int scx;
+      } pRevSegmentTable[MAX_NBSEG_IN_BUF];
+
+struct REV_SEGMENTS pRevSegmentSingle[1];
+
+struct REV_SEGMENTS_IND {
+        short tcn_number_ind;
+        short date_paiement_ind;
+        short tarif_type_ind;
+        short class_of_service_ind;
+		//DM7978 - JLA - Ajout du palier
+		short num_palier_ind;
+        short pp_num_ind;
+        short segment_num_ind;
+        short origine_seg_ind;
+        short destination_seg_ind;
+        short longueur_seg_ind;
+        short date_resa_ind;
+        short canal_reservation_ind;
+        short nest_level_ind;
+        short train_no_ind;
+        short tranche_no_ind;
+        short tranche_carrier_code_ind;
+        short date_depart_ind;
+        short heure_depart_ind;
+        short date_arrive_ind;
+        short heure_arrive_ind;
+        short niveau_social_ind;
+        short montant_resa_ind;
+        short montant_supplement_ind;
+        short type_equipement_ind;
+        short revenu_ind;
+        short date_max_depart_ind;
+        short scx_ind;
+      } pRevSegmentTableInd[MAX_NBSEG_IN_BUF];
+
+struct REV_SEGMENTS_IND pRevSegmentSingleInd[1];
+
+struct REV_PASSAGERS_PARCOURS {
+        int tcn_number;
+        char date_paiement[11];
+        varchar tarif_type[7];
+        varchar class_of_service[3];
+        int pp_num;
+        varchar passager_type[7];
+        varchar code_tarif[5];
+        int nombre_passagers;
+        int montant_unit_transport;
+        int surtaxe_origine;
+        int surtaxe_destination;
+        int montant_domestique;
+        char date_max_depart[11];
+        varchar fare_basis_code[9];
+      } pRevPasParTable[MAX_NBPAP_IN_BUF];
+
+struct REV_PASSAGERS_PARCOURS pRevPasParSingle[1];
+
+struct REV_PASSAGERS_PARCOURS_IND {
+        short tcn_number_ind;
+        short date_paiement_ind;
+        short tarif_type_ind;
+        short class_of_service_ind;
+        short pp_num_ind;
+        short passager_type_ind;
+        short code_tarif_ind;
+        short nombre_passagers_ind;
+        short montant_unit_transport_ind;
+        short surtaxe_origine_ind;
+        short surtaxe_destination_ind;
+        short montant_domestique_ind;
+        short date_max_depart_ind;
+        short fare_basis_code_ind;
+      } pRevPasParTableInd[MAX_NBPAP_IN_BUF];
+
+struct REV_PASSAGERS_PARCOURS_IND pRevPasParSingleInd[1];
+
+struct REV_TCN {
+        int tcn_number;
+        char date_paiement[11];
+        int heure_paiement;
+        varchar canal_paiement[4];
+        char date_emission_physique[11];
+        varchar canal_emission[4];
+        char date_max_depart[11];
+        int annule;
+        // DM7979 segmentation client taille 7 + zéro binaire \0
+        varchar codeFCE[8];
+      } pRevTcnTable[MAX_NBTCN_IN_BUF];
+
+struct REV_TCN pRevTcnSingle[1];
+
+struct REV_TCN_IND {
+        short tcn_number_ind;
+        short date_paiement_ind;
+        short heure_paiement_ind;
+        short canal_paiement_ind;
+        short date_emission_physique_ind;
+        short canal_emission_ind;
+        short date_max_depart_ind;
+        short annule_ind;
+        // DM7979 segmentation client taille 7 + zéro binaire \0
+        short codeFCE_ind;
+      } pRevTcnTableInd[MAX_NBTCN_IN_BUF];
+
+struct REV_TCN_IND pRevTcnSingleInd[1];
+
+struct REV_TCN_A_TRAITER {
+        int tcn_number;
+        char date_paiement[11];
+        char date_fichier[11];
+        int heure_fichier;
+     } pRevTcnATraiterTable[MAX_NBTCN_IN_BUF];
+
+struct REV_TCN_A_TRAITER pRevTcnATraiterSingle[1];
+
+char connectstringLireVec[55];
+sql_context ctxLireVec;
+EXEC SQL END DECLARE SECTION;
+
+
+
+YmRevLireVec::YmRevLireVec()
+{
+  nbTCNtotal = 0;
+  nbPPtotal = 0;
+  nbSEGtotal = 0;
+}
+
+YmRevLireVec::~YmRevLireVec()
+{
+}
+
+void YmRevLireVec::Start()
+{
+  // FIXME_NPI: Complement de la trace pour analyse plus fine du CR137 - A SUPPRIMER QUAND LE PROBLEME SERA RESOLU
+  cout <<DonneHeure()<<" Debut Lire Vecteurs"<<endl;
+
+  sprintf (connectstringLireVec, "%s/%s", g_UserName, g_Password);
+  EXEC SQL WHENEVER SQLERROR DO sql_error ((char*)"Pb YmRevLireVec", 0);
+  EXEC SQL CONTEXT ALLOCATE :ctxLireVec;
+  EXEC SQL CONTEXT USE :ctxLireVec;
+  EXEC SQL CONNECT :connectstringLireVec;
+  while (g_EcrireVecEnCours || g_VTcn.size())
+  { // On teste a la fois size et Ecriture en cours, au cas ou LireVec irai plus vite que EcrireVec
+    purgeBufTcn();
+	
+    LOCK_MUTEX (&g_MutexVTcn);
+    fillBufTcn();
+
+    UNLOCK_MUTEX (&g_MutexVTcn);
+    nbTcnInBuf = countPaPaSegInBuf (nbPaPaInBuf, nbSegInBuf);
+    if (nbTcnInBuf)
+    {
+		
+      cout <<".";
+      LOCK_MUTEX (&g_MutexVTcn);
+      g_VTcn.erase (g_VTcn.begin(), g_VTcn.begin()+nbTcnInBuf);
+      // rappel erase supprime entre first inclu et last exclu.
+      UNLOCK_MUTEX (&g_MutexVTcn);
+	 
+      InsertTCN();
+	
+      InsertPassagersParcours();
+
+      InsertSegment();
+    }
+    else
+      sleep(6); // On attend un peu qu'il y ai du taf.
+    EXEC SQL COMMIT WORK;
+  }
+  cout<<endl;
+  cout<<DonneHeure()<<" Fin LireVec  TCN:"<<nbTCNtotal<<"  PassagersParcours:"<<nbPPtotal<<"  Segments:"<<nbSEGtotal<<endl;
+  EXEC SQL COMMIT WORK RELEASE;
+  EXEC SQL CONTEXT FREE :ctxLireVec;
+  return;
+}
+
+ // Fait delete sur tous les YmRevTcn* contenu dans bufVTcn et vide ce vecteur.
+void YmRevLireVec::purgeBufTcn()
+{
+  // FIXME_NPI: Complement de la trace pour analyse plus fine du CR137 - A SUPPRIMER QUAND LE PROBLEME SERA RESOLU
+  //cout <<DonneHeure()<<" Debut purgeBufTcn"<<endl;
+  
+  int i;
+  YmRevTcn* pRevTcn;
+  for (i=0; i < bufVTcn.size(); i++)
+  {
+    pRevTcn = bufVTcn[i];
+    delete pRevTcn;
+  }
+  bufVTcn.clear();
+  
+  // FIXME_NPI: Complement de la trace pour analyse plus fine du CR137 - A SUPPRIMER QUAND LE PROBLEME SERA RESOLU
+  //cout <<DonneHeure()<<" Fin purgeBufTcn"<<endl;
+}
+
+//place MAX_NBTCN_IN_BUF YmRevTcn* dans le vecteur local bufVTcn (ou moins si g_VTcn en contient moins)
+int YmRevLireVec::fillBufTcn()
+{
+  // FIXME_NPI: Complement de la trace pour analyse plus fine du CR137 - A SUPPRIMER QUAND LE PROBLEME SERA RESOLU
+  //cout <<DonneHeure()<<" Debut fillBufTcn"<<endl;
+  
+  int maxrec = MAX_NBTCN_IN_BUF;
+  if (g_VTcn.size() < MAX_NBTCN_IN_BUF)
+    maxrec = g_VTcn.size();
+  bufVTcn.assign (g_VTcn.begin(), g_VTcn.begin()+maxrec);
+  return maxrec;
+  
+  // FIXME_NPI: Complement de la trace pour analyse plus fine du CR137 - A SUPPRIMER QUAND LE PROBLEME SERA RESOLU
+  //cout <<DonneHeure()<<" Fin fillBufTcn"<<endl;
+}
+
+// compte le nombre de YmRevPassagersParcours et YmRevSegment dans bufVTcn, 
+// mais arrete de compte lorsque l'on atteind la limite des tableaux utilise pour les insert.
+// Renvoi le nombre de YmRevTcn qu'il faut effectivement conserve dans bufVTcn
+int YmRevLireVec::countPaPaSegInBuf (int& nbPaPa, int& nbSeg)
+{
+  // FIXME_NPI: Complement de la trace pour analyse plus fine du CR137 - A SUPPRIMER QUAND LE PROBLEME SERA RESOLU
+  // cout <<DonneHeure()<<" Debut countPaPaSegInBuf"<<endl;
+  
+  int i;
+  YmRevTcn* pRevTcn;
+  YmRevPassagersParcours* pPasPar;
+  nbPaPa = nbSeg = 0;
+  for (i=0; i < bufVTcn.size(); i++)
+  {
+    pRevTcn = bufVTcn[i];
+    list<YmRevPassagersParcours *>::iterator iPosPa = pRevTcn->_listePassagersParcours.begin();
+    list<YmRevPassagersParcours *>::iterator iFinPa = pRevTcn->_listePassagersParcours.end();
+    while (iPosPa!=iFinPa)
+    {
+      pPasPar = *iPosPa;
+      iPosPa++;
+      nbPaPa++;
+      nbSeg += pPasPar->_listeSegments.size();
+      if ((nbSeg >= MAX_NBSEG_IN_BUF) || (nbPaPa >= MAX_NBPAP_IN_BUF))
+      {
+        nbSeg -= pPasPar->_listeSegments.size();
+        nbPaPa --;
+        // on enleve de bufVTcn les TCN exedentaires
+        bufVTcn.erase (bufVTcn.begin()+i, bufVTcn.end());
+		
+		// FIXME_NPI: Complement de la trace pour analyse plus fine du CR137 - A SUPPRIMER QUAND LE PROBLEME SERA RESOLU
+		//cout <<DonneHeure()<<" Fin countPaPaSegInBuf (TCN excendaires)"<<endl;
+		
+        return i;
+      }
+    }
+  }
+  
+  // FIXME_NPI: Complement de la trace pour analyse plus fine du CR137 - A SUPPRIMER QUAND LE PROBLEME SERA RESOLU
+  //cout <<DonneHeure()<<" Fin countPaPaSegInBuf (fin normale)"<<endl;
+  
+  return i;
+}
+
+void YmRevLireVec::InsertSegment()
+{
+  // FIXME_NPI: Complement de la trace pour analyse plus fine du CR137 - A SUPPRIMER QUAND LE PROBLEME SERA RESOLU
+  //cout <<DonneHeure()<<" Debut InsertSegment"<<endl;
+  
+  memset (pRevSegmentTable, 0, sizeof(pRevSegmentTable));
+  memset (pRevSegmentTableInd, 0, sizeof(pRevSegmentTableInd));
+  int i, k;
+  YmRevTcn* pRevTcn;
+  YmRevPassagersParcours* pPasPar;
+  YmRevSegments* pSegment;
+  char datemaxdepart[11];
+  string lstrdatetemp;
+  
+  k = 0;
+  for (i=0; i < bufVTcn.size(); i++)
+  {
+    pRevTcn = bufVTcn[i];
+    //
+    //lstrdatetemp=string(lsdate,8);
+    lstrdatetemp=pRevTcn->getDateMaxDepart().substr(6,2)+'/'+pRevTcn->getDateMaxDepart().substr(4,2)+'/'+pRevTcn->getDateMaxDepart().substr(0,4);
+    strcpy (datemaxdepart,(char*)lstrdatetemp.c_str() );
+    //
+    list<YmRevPassagersParcours *>::iterator iPosPa = pRevTcn->_listePassagersParcours.begin();
+    list<YmRevPassagersParcours *>::iterator iFinPa = pRevTcn->_listePassagersParcours.end();
+    int ppnum = 0;
+    while (iPosPa!=iFinPa)
+    {
+      pPasPar = *iPosPa;
+      iPosPa++;
+      list<YmRevSegments *>::iterator iPosSeg = pPasPar->_listeSegments.begin();
+      list<YmRevSegments *>::iterator iFinSeg = pPasPar->_listeSegments.end();
+      while (iPosSeg!=iFinSeg)
+      {
+		//JRO IC SRO - DT 23805 - Ajout d'un flag isTRAIN initialisé à 0
+		int isTrain=0;
+		
+        pSegment = *iPosSeg;
+        iPosSeg++;
+      
+
+        pRevSegmentTable[k].tcn_number = pSegment->getTcnNumber(); 
+    
+         
+        lstrdatetemp=pSegment->getDatePaiement().substr(6,2)+'/'+pSegment->getDatePaiement().substr(4,2)+'/'+pSegment->getDatePaiement().substr(0,4);
+        strcpy (pRevSegmentTable[k].date_paiement,(char*)lstrdatetemp.c_str() );
+        //
+	
+
+        strcpy ((char*)pRevSegmentTable[k].tarif_type.arr, pSegment->getTarifType().c_str());
+        pRevSegmentTable[k].tarif_type.len = pSegment->getTarifType().size();
+
+		
+
+        pRevSegmentTable[k].pp_num = ppnum;
+        pRevSegmentTable[k].segment_num = pSegment->getSegmentNum(); 
+
+        strcpy ((char*)pRevSegmentTable[k].origine_seg.arr, pSegment->getOrigineSeg().c_str());
+        pRevSegmentTable[k].origine_seg.len = pSegment->getOrigineSeg().size();
+
+        strcpy ((char*)pRevSegmentTable[k].destination_seg.arr, pSegment->getDestinationSeg().c_str());
+        pRevSegmentTable[k].destination_seg.len = pSegment->getDestinationSeg().size();
+
+        pRevSegmentTable[k].longueur_seg = pSegment->getLongueurSeg(); 
+
+        if (pSegment->getDateResa().empty())
+          pRevSegmentTableInd[k].date_resa_ind = -1;
+        else
+        {
+          //
+         
+          //lstrdatetemp=pSegment->getDateResa().substr(6,2)+'/'+pSegment->getDateResa().substr(4,2)+'/'+pSegment->getDateResa().substr(0,4);
+          strcpy (pRevSegmentTable[k].date_resa,(char*)lstrdatetemp.c_str() );
+          //
+        } 
+
+        if (pSegment->getCanalReservation().empty())
+        {
+          pRevSegmentTableInd[k].canal_reservation_ind = -1;
+        }
+        else
+        {
+          strcpy ((char*)pRevSegmentTable[k].canal_reservation.arr, pSegment->getCanalReservation().c_str());
+          pRevSegmentTable[k].canal_reservation.len = pSegment->getCanalReservation().size();
+        }
+
+        //DT33254
+
+        if(pSegment->getUpgHan()==0 || (pSegment->getUpgHan()!=1 && pSegment->getUpgHan()!=2 )){
+          strcpy ((char*)pRevSegmentTable[k].class_of_service.arr, pSegment->getClassOfService().c_str());
+          pRevSegmentTable[k].class_of_service.len = pSegment->getClassOfService().size();
+          //DM7978 - JLA - Ajout du palier
+          pRevSegmentTable[k].num_palier = pSegment->getNumPalier();
+        }
+        else
+        {
+          strcpy ((char*)pRevSegmentTable[k].class_of_service.arr, pSegment->getClasseBooking().c_str());
+          pRevSegmentTable[k].class_of_service.len = pSegment->getClasseBooking().size();
+            pRevSegmentTable[k].num_palier = pSegment->getPalierBooking();       
+        }
+
+
+   
+		pRevSegmentTable[k].nest_level = pSegment->getNestLevel(); 
+		
+        pRevSegmentTable[k].train_no = pSegment->getTrainNo(); 
+		
+		// JRO IC SRO DT 23805 Récupération de la date de départ
+        
+        lstrdatetemp=pSegment->getDateDepart().substr(6,2)+'/'+pSegment->getDateDepart().substr(4,2)+'/'+pSegment->getDateDepart().substr(0,4);
+        strcpy (pRevSegmentTable[k].date_depart,lstrdatetemp.c_str() );
+
+		//JRO IC SRO DT 23805
+
+		if (pSegment->getTrancheNo() == 0) 
+		{
+			
+			
+			//Si le train a un  No de tranche en base OP correspondant à son numéro de train
+			//JRO IC SRO - ANO 87361 - getNoTranche est mtn une méthode de YmRevMapTrLeg
+			if (g_MapTrLeg.getNoTranche(pRevSegmentTable[k].train_no, pRevSegmentTable[k].date_depart)!=0)
+			{
+			
+				pRevSegmentTable[k].tranche_no = g_MapTrLeg.getNoTranche(pRevSegmentTable[k].train_no, pRevSegmentTable[k].date_depart);
+				pSegment->setTrancheNo(g_MapTrLeg.getNoTranche(pRevSegmentTable[k].train_no, pRevSegmentTable[k].date_depart));
+			}
+			
+			else 
+			{
+				
+			
+				
+				pRevSegmentTable[k].tranche_no = pRevSegmentTable[k].train_no;
+				pSegment->setTrancheNo(pRevSegmentTable[k].train_no);
+				
+				//Mise à jour du flag isTrain
+				isTrain = 1 ; 
+			}
+		}
+        else{
+	
+			  pRevSegmentTable[k].tranche_no = pSegment->getTrancheNo();
+			//FIN JRO IC SRO DT 23805
+		}
+		
+			
+
+		
+		
+        strcpy ((char*)pRevSegmentTable[k].tranche_carrier_code.arr, pSegment->getTrancheCarrierCode().c_str());
+		
+        pRevSegmentTable[k].tranche_carrier_code.len = pSegment->getTrancheCarrierCode().size();
+        
+        lstrdatetemp=pSegment->getDateDepart().substr(6,2)+'/'+pSegment->getDateDepart().substr(4,2)+'/'+pSegment->getDateDepart().substr(0,4);
+        strcpy (pRevSegmentTable[k].date_depart,lstrdatetemp.c_str() );
+        //
+
+
+        pRevSegmentTable[k].heure_depart = atoi (pSegment->getHeureDepart().c_str());
+        //cout << "        date Arrivee : " << pSegment->getDateArrivee() << endl;
+        //cout << "        date max depart : " << pRevTcn->getDateMaxDepart() << endl;  
+		//cout << "        heure depart : " << pSegment->getHeureDepart() << endl;  
+		//cout << "        heure arrivee : " << pSegment->getHeureArrivee() << endl;  
+        //cout << " date max depart convertie en datemaxdepart : " << datemaxdepart << endl;
+        //
+		if (pSegment->getDateArrivee().empty())
+          pRevSegmentTableInd[k].date_arrive_ind = -1;
+        else
+        {         
+		  lstrdatetemp=pSegment->getDateArrivee().substr(6,2)+'/'+pSegment->getDateArrivee().substr(4,2)+'/'+pSegment->getDateArrivee().substr(0,4);
+          strcpy (pRevSegmentTable[k].date_arrive,lstrdatetemp.c_str() );
+		}
+        //
+	
+		if (pSegment->getHeureArrivee().empty())
+          pRevSegmentTableInd[k].heure_arrive_ind = -1;
+		else
+		{
+		  pRevSegmentTable[k].heure_arrive = atoi (pSegment->getHeureArrivee().c_str());
+		}
+
+        //DM 7978 - JLA - Changement pas Niveau social
+        if (pSegment->getNiveauSocial().empty())
+          pRevSegmentTableInd[k].niveau_social_ind = -1;
+        else
+          pRevSegmentTable[k].niveau_social = atoi (pSegment->getNiveauSocial().c_str()); 
+		//DM 7978 - JLA - Fin
+        if (pSegment->getMontantResa() == 0) 
+          pRevSegmentTableInd[k].montant_resa_ind = -1;
+        else
+          pRevSegmentTable[k].montant_resa = pSegment->getMontantResa(); 
+
+        if (pSegment->getMontantSupplement() == 0) 
+          pRevSegmentTableInd[k].montant_supplement_ind = -1;
+        else
+          pRevSegmentTable[k].montant_supplement = pSegment->getMontantSupplement(); 
+
+        if (pSegment->getTypeEquipement().empty())
+          pRevSegmentTableInd[k].type_equipement_ind = -1;
+        else
+        {
+          strcpy ((char*)pRevSegmentTable[k].type_equipement.arr, pSegment->getTypeEquipement().c_str());
+          pRevSegmentTable[k].type_equipement.len = pSegment->getTypeEquipement().size();
+        }
+
+        if (pSegment->getRevenu() == 0) 
+          pRevSegmentTableInd[k].revenu_ind = -1;
+        else
+          pRevSegmentTable[k].revenu = pSegment->getRevenu(); 
+
+        strcpy (pRevSegmentTable[k].date_max_depart, datemaxdepart);
+//DM5882.1 :sous-contingentement ( scx ) pour nestlevel =0
+        if (pSegment->getScx() == 0)
+          pRevSegmentTableInd[k].scx_ind = -1;
+        else
+          pRevSegmentTable[k].scx = pSegment->getScx();
+//
+
+        AddInMapTpOD (pPasPar, pSegment,isTrain);
+
+        k++;
+	
+      } // boucle sur les segments
+      ppnum++;
+    } // boucle sur les passagersParcours
+  } // boucle sur les TCN
+//DM7978 - JLA - Ajout du palier
+  EXEC SQL WHENEVER SQLERROR GOTO err_segment_insert;
+  EXEC SQL FOR :nbSegInBuf INSERT INTO REV_SEGMENTS 
+       (TCN_NUMBER, DATE_PAIEMENT, TARIF_TYPE, CLASS_OF_SERVICE, NUM_PALIER, PP_NUM, SEGMENT_NUM, ORIGINE_SEG, DESTINATION_SEG,
+        LONGUEUR_SEG, DATE_RESA, CANAL_RESERVATION, NEST_LEVEL, TRAIN_NO, TRANCHE_NO, TRANCHE_CARRIER_CODE,
+        DATE_DEPART, HEURE_DEPART, DATE_ARRIVEE, HEURE_ARRIVEE, niveau_social, MONTANT_RESA, MONTANT_SUPPLEMENT,
+        TYPE_EQUIPEMENT, REVENU, DATE_MAX_DEPART, SCX)
+       values (:pRevSegmentTable indicator :pRevSegmentTableInd);
+  nbSEGtotal += nbSegInBuf;
+  EXEC SQL COMMIT WORK;
+  return;
+
+err_segment_insert:
+  cerr << "ERROR BULK INSERT SEGMENT: \n";
+  char szMess[71];
+  strncpy(szMess,sqlca.sqlerrm.sqlerrmc,sqlca.sqlerrm.sqlerrml);
+  szMess[sqlca.sqlerrm.sqlerrml]='\0';
+  cerr << szMess << "\n";
+  EXEC SQL WHENEVER SQLERROR CONTINUE;
+  EXEC SQL ROLLBACK WORK;
+
+  cout<<"insertion ligne a ligne de "<<nbSegInBuf<<" SEGMENTS"<<endl;
+  int j = 0;
+  for (j = 0; j < nbSegInBuf; j++)
+  {
+  //DM7978 - JLA - Ajout du palier
+    EXEC SQL WHENEVER SQLERROR DO sql_warn ("SEGMENTS", pRevSegmentTable[j].tcn_number, nbSEGtotal);
+    pRevSegmentSingle[0] = pRevSegmentTable[j];
+    pRevSegmentSingleInd[0] = pRevSegmentTableInd[j];
+
+    EXEC SQL FOR 1 INSERT INTO REV_SEGMENTS 
+       (TCN_NUMBER, DATE_PAIEMENT, TARIF_TYPE, CLASS_OF_SERVICE, NUM_PALIER, PP_NUM, SEGMENT_NUM, ORIGINE_SEG, DESTINATION_SEG,
+        LONGUEUR_SEG, DATE_RESA, CANAL_RESERVATION, NEST_LEVEL, TRAIN_NO, TRANCHE_NO, TRANCHE_CARRIER_CODE,
+        DATE_DEPART, HEURE_DEPART, DATE_ARRIVEE, HEURE_ARRIVEE, niveau_social, MONTANT_RESA, MONTANT_SUPPLEMENT,
+        TYPE_EQUIPEMENT, REVENU, DATE_MAX_DEPART, SCX)
+       values (:pRevSegmentSingle indicator :pRevSegmentSingleInd);
+    nbSEGtotal ++;
+  }
+  EXEC SQL COMMIT WORK;
+  
+  // FIXME_NPI: Complement de la trace pour analyse plus fine du CR137 - A SUPPRIMER QUAND LE PROBLEME SERA RESOLU
+  // cout <<DonneHeure()<<" Fin InsertSegment"<<endl;
+}
+
+
+// Insertion dans la table REV_PASSAGERS_PARCOURS avec FBC
+void YmRevLireVec::InsertPassagersParcours()
+{
+  // FIXME_NPI: Complement de la trace pour analyse plus fine du CR137 - A SUPPRIMER QUAND LE PROBLEME SERA RESOLU
+  // cout <<DonneHeure()<<" Debut InsertPassagersParcours"<<endl;
+  
+  memset (pRevPasParTable, 0, sizeof(pRevPasParTable));
+  memset (pRevPasParTableInd, 0, sizeof(pRevPasParTableInd));
+  int i, k;
+  YmRevTcn* pRevTcn;
+  YmRevPassagersParcours* pPasPar;
+  char datemaxdepart[11];
+  string lstrdatetemp;
+  
+  k = 0;
+  for (i=0; i < bufVTcn.size(); i++)
+  {
+    pRevTcn = bufVTcn[i];
+    //
+    
+    lstrdatetemp=pRevTcn->getDateMaxDepart().substr(6,2)+'/'+pRevTcn->getDateMaxDepart().substr(4,2)+'/'+pRevTcn->getDateMaxDepart().substr(0,4);
+    strcpy (datemaxdepart,lstrdatetemp.c_str() );
+    //
+
+    list<YmRevPassagersParcours *>::iterator iPosPa = pRevTcn->_listePassagersParcours.begin();
+    list<YmRevPassagersParcours *>::iterator iFinPa = pRevTcn->_listePassagersParcours.end();
+    string szTarifType;
+    int ppnum = 0;
+    while (iPosPa!=iFinPa)
+    {
+      pPasPar = *iPosPa;
+      iPosPa++;
+      pRevPasParTable[k].tcn_number = pPasPar->getTcnNumber(); 
+      //
+      
+      lstrdatetemp=pPasPar->getDatePaiement().substr(6,2)+'/'+pPasPar->getDatePaiement().substr(4,2)+'/'+pPasPar->getDatePaiement().substr(0,4);
+      strcpy (pRevPasParTable[k].date_paiement,lstrdatetemp.c_str() );
+      //
+
+
+      strcpy ((char*)pRevPasParTable[k].tarif_type.arr, pPasPar->getTarifType().c_str());
+      pRevPasParTable[k].tarif_type.len = pPasPar->getTarifType().size();
+
+
+
+        //DT33254
+
+        if(pPasPar->getUpgHan()==0 || (pPasPar->getUpgHan()!=1 && pPasPar->getUpgHan()!=2 )){
+          strcpy ((char*)pRevPasParTable[k].class_of_service.arr, pPasPar->getClassOfService().c_str());
+          pRevPasParTable[k].class_of_service.len = pPasPar->getClassOfService().size();
+        }else{
+          strcpy ((char*)pRevPasParTable[k].class_of_service.arr, pPasPar->getClasseBooking().c_str());
+          pRevPasParTable[k].class_of_service.len = pPasPar->getClasseBooking().size();
+        }
+
+      pRevPasParTable[k].pp_num = ppnum;
+      ppnum++;
+
+      strcpy ((char*)pRevPasParTable[k].passager_type.arr, pPasPar->getPassagerType().c_str());
+      pRevPasParTable[k].passager_type.len = pPasPar->getPassagerType().size();
+
+      if (pPasPar->getCodeTarif().empty())
+        pRevPasParTableInd[k].code_tarif_ind = -1;
+      else
+      {
+        strcpy ((char*)pRevPasParTable[k].code_tarif.arr, pPasPar->getCodeTarif().c_str());
+        pRevPasParTable[k].code_tarif.len = pPasPar->getCodeTarif().size();
+      }
+
+      if ((pPasPar->getFareBasisCode().empty()) || (!strcmp (g_Client, "SN") && !g_forceFBC))
+        pRevPasParTableInd[k].fare_basis_code_ind = -1;
+      else
+      {
+        strcpy ((char*)pRevPasParTable[k].fare_basis_code.arr, pPasPar->getFareBasisCode().c_str());
+        pRevPasParTable[k].fare_basis_code.len = pPasPar->getFareBasisCode().size();
+      }
+
+      pRevPasParTable[k].nombre_passagers = pPasPar->getNombrePassagers(); 
+      
+      if (pPasPar->getMontantUnitTransport() == 0)
+        pRevPasParTableInd[k].montant_unit_transport_ind = -1;
+      else
+        pRevPasParTable[k].montant_unit_transport = pPasPar->getMontantUnitTransport(); 
+
+      if (pPasPar->getSurtaxeOrigine() == 0)
+        pRevPasParTableInd[k].surtaxe_origine_ind = -1;
+      else
+        pRevPasParTable[k].surtaxe_origine = pPasPar->getSurtaxeOrigine(); 
+
+      if (pPasPar->getSurtaxeDestination() == 0)
+        pRevPasParTableInd[k].surtaxe_destination_ind = -1;
+      else
+        pRevPasParTable[k].surtaxe_destination = pPasPar->getSurtaxeDestination(); 
+
+      if (pPasPar->getMontantDomestique() == 0)
+        pRevPasParTableInd[k].montant_domestique_ind = -1;
+      else
+        pRevPasParTable[k].montant_domestique = pPasPar->getMontantDomestique(); 
+
+      strcpy (pRevPasParTable[k].date_max_depart, datemaxdepart);
+
+      k++;
+    } //boucle sur passagersParcours
+  } // boucle sur TCN
+
+  EXEC SQL WHENEVER SQLERROR GOTO err_paspar_insert;
+  EXEC SQL FOR :nbPaPaInBuf INSERT INTO REV_PASSAGERS_PARCOURS 
+       (TCN_NUMBER, DATE_PAIEMENT, TARIF_TYPE, CLASS_OF_SERVICE, PP_NUM, PASSAGER_TYPE, CODE_TARIF, NOMBRE_PASSAGERS,
+        MONTANT_UNIT_TRANSPORT, SURTAXE_ORIGINE, SURTAXE_DESTINATION, MONTANT_DOMESTIQUE, DATE_MAX_DEPART, FARE_BASIS_CODE)
+       values (:pRevPasParTable indicator :pRevPasParTableInd);
+  nbPPtotal += nbPaPaInBuf;
+  EXEC SQL COMMIT WORK;
+  return;
+
+err_paspar_insert:
+  cerr << "ERROR BULK INSERT PASSAGERS PARCOURS: \n";
+  char szMess[71];
+  strncpy(szMess,sqlca.sqlerrm.sqlerrmc,sqlca.sqlerrm.sqlerrml);
+  szMess[sqlca.sqlerrm.sqlerrml]='\0';
+  cerr << szMess << "\n";
+  EXEC SQL WHENEVER SQLERROR CONTINUE;
+  EXEC SQL ROLLBACK WORK;
+
+  cout<<"insertion ligne a ligne de "<<nbPaPaInBuf<<" PASSAGERS PARCOURS"<<endl;
+  int j = 0;
+  for (j = 0; j < nbPaPaInBuf; j++)
+  {
+    EXEC SQL WHENEVER SQLERROR DO sql_warn ("PASSAGERS_PARCOURS", pRevPasParTable[j].tcn_number, nbPPtotal);
+    pRevPasParSingle[0] = pRevPasParTable[j];
+    pRevPasParSingleInd[0] = pRevPasParTableInd[j];
+    EXEC SQL FOR 1 INSERT INTO REV_PASSAGERS_PARCOURS 
+       (TCN_NUMBER, DATE_PAIEMENT, TARIF_TYPE, CLASS_OF_SERVICE, PP_NUM, PASSAGER_TYPE, CODE_TARIF, NOMBRE_PASSAGERS,
+        MONTANT_UNIT_TRANSPORT, SURTAXE_ORIGINE, SURTAXE_DESTINATION, MONTANT_DOMESTIQUE, DATE_MAX_DEPART, FARE_BASIS_CODE)
+       values (:pRevPasParSingle indicator :pRevPasParSingleInd);
+    nbPPtotal ++;
+  }
+  EXEC SQL COMMIT WORK;
+  
+  // FIXME_NPI: Complement de la trace pour analyse plus fine du CR137 - A SUPPRIMER QUAND LE PROBLEME SERA RESOLU
+  // cout <<DonneHeure()<<" Fin InsertPassagersParcours"<<endl;
+}
+
+// Insertion dans la table REV_TCN
+void YmRevLireVec::InsertTCN()
+{
+  // FIXME_NPI: Complement de la trace pour analyse plus fine du CR137 - A SUPPRIMER QUAND LE PROBLEME SERA RESOLU
+  //cout <<DonneHeure()<<" Debut InsertTCN"<<endl;
+  
+  memset (pRevTcnTable, 0, sizeof(pRevTcnTable));
+  memset (pRevTcnTableInd, 0, sizeof(pRevTcnTableInd));
+  memset (pRevTcnATraiterTable, 0, sizeof(pRevTcnATraiterTable));
+  int i, k;
+  string lstrdatetemp;
+ 
+  YmRevTcn* pRevTcn;
+  k = 0;
+  for (i=0; i < bufVTcn.size(); i++)
+  {
+    pRevTcn = bufVTcn[i];
+
+	
+    pRevTcnATraiterTable[k].tcn_number = pRevTcn->getTcnNumber(); 
+
+    //
+    
+    lstrdatetemp=pRevTcn->getDatePaiement().substr(6,2)+'/'+pRevTcn->getDatePaiement().substr(4,2)+'/'+pRevTcn->getDatePaiement().substr(0,4);
+    strcpy (pRevTcnATraiterTable[k].date_paiement,lstrdatetemp.c_str() );
+    
+	
+    strcpy (pRevTcnATraiterTable[k].date_fichier, g_szDateFichier);
+    pRevTcnATraiterTable[k].heure_fichier = g_HeureFichier;
+
+    pRevTcnTable[k].tcn_number = pRevTcn->getTcnNumber(); 
+    //
+    strcpy (pRevTcnTable[k].date_paiement,lstrdatetemp.c_str() );
+    //
+
+    pRevTcnTable[k].heure_paiement = atoi (pRevTcn->getHeurePaiement().c_str()); 
+
+	
+    strcpy ((char*)pRevTcnTable[k].canal_paiement.arr, pRevTcn->getCanalPaiement().c_str());
+    pRevTcnTable[k].canal_paiement.len = pRevTcn->getCanalPaiement().size();
+
+
+    if (pRevTcn->getDateEmissionPhysique().empty())
+      pRevTcnTableInd[k].date_emission_physique_ind = -1;
+    else
+    {
+      //
+      
+      lstrdatetemp=pRevTcn->getDateEmissionPhysique().substr(6,2)+'/'+pRevTcn->getDateEmissionPhysique().substr(4,2)+'/'+pRevTcn->getDateEmissionPhysique().substr(0,4);
+      strcpy (pRevTcnTable[k].date_emission_physique,lstrdatetemp.c_str() );
+      //
+    }
+
+    if (pRevTcn->getCanalEmission().empty())
+      pRevTcnTableInd[k].canal_emission_ind = -1;
+    else
+    {
+      strcpy ((char*)pRevTcnTable[k].canal_emission.arr, pRevTcn->getCanalEmission().c_str());
+      pRevTcnTable[k].canal_emission.len = pRevTcn->getCanalEmission().size();
+    }
+    //
+	
+
+	if (!pRevTcn->getDateMaxDepart().empty())
+	{       
+		lstrdatetemp=pRevTcn->getDateMaxDepart().substr(6,2)+'/'+pRevTcn->getDateMaxDepart().substr(4,2)+'/'+pRevTcn->getDateMaxDepart().substr(0,4);
+		strcpy (pRevTcnTable[k].date_max_depart,lstrdatetemp.c_str() );
+	}
+	else {
+	
+		strcpy (pRevTcnTable[k].date_max_depart,"" );
+    
+	}//
+	
+
+    pRevTcnTableInd[k].annule_ind = -1;
+   
+    // DM7979 segmentation client : ajout code FCE
+    if (pRevTcn->getCodeFCE().empty())
+      pRevTcnTableInd[k].codeFCE_ind = -1;
+    else
+    {
+      strcpy ((char*)pRevTcnTable[k].codeFCE.arr, pRevTcn->getCodeFCE().c_str());
+      pRevTcnTable[k].codeFCE.len = pRevTcn->getCodeFCE().size();
+    }
+  
+	
+    k++;
+  }
+
+ 
+  EXEC SQL WHENEVER SQLERROR GOTO err_tcn_insert;
+  EXEC SQL FOR :nbTcnInBuf INSERT INTO REV_TCN_A_TRAITER
+       (TCN_NUMBER_AT, DATE_PAIEMENT_AT, DATE_FICHIER, HEURE_FICHIER)
+       values (:pRevTcnATraiterTable);
+
+  EXEC SQL FOR :nbTcnInBuf INSERT INTO REV_TCN
+        // DM7979 segmentation client : Ajout champ FCE
+       (TCN_NUMBER, DATE_PAIEMENT, HEURE_PAIEMENT, CANAL_PAIEMENT, DATE_EMISSION_PHYSIQUE, CANAL_EMISSION,
+        DATE_MAX_DEPART, ANNULE, FCE)
+       values (:pRevTcnTable indicator :pRevTcnTableInd);
+  nbTCNtotal += nbTcnInBuf;
+  EXEC SQL COMMIT WORK;
+  return;
+          
+err_tcn_insert:
+  cerr << "ERROR BULK INSERT TCN: \n";
+  char szMess[71];
+  strncpy(szMess,sqlca.sqlerrm.sqlerrmc,sqlca.sqlerrm.sqlerrml);
+  szMess[sqlca.sqlerrm.sqlerrml]='\0';
+  cerr << szMess << "\n";
+  EXEC SQL WHENEVER SQLERROR CONTINUE;
+  EXEC SQL ROLLBACK WORK;
+
+  cout<<"insertion ligne a ligne de "<<nbTcnInBuf<<" TCN"<<endl;
+  int j = 0;
+  for (j = 0; j < nbTcnInBuf; j++)
+  {
+    EXEC SQL WHENEVER SQLERROR CONTINUE;
+    pRevTcnATraiterSingle[0] = pRevTcnATraiterTable[j];
+    EXEC SQL FOR 1 INSERT INTO REV_TCN_A_TRAITER
+       (TCN_NUMBER_AT, DATE_PAIEMENT_AT, DATE_FICHIER, HEURE_FICHIER)
+       values (:pRevTcnATraiterSingle);
+    
+    EXEC SQL WHENEVER SQLERROR DO sql_warn ("TCN", pRevTcnTable[j].tcn_number, nbTCNtotal);
+    pRevTcnSingle[0] = pRevTcnTable[j];
+    pRevTcnSingleInd[0] = pRevTcnTableInd[j];
+    EXEC SQL FOR 1 INSERT INTO REV_TCN 
+        // DM7979 segmentation client : Ajout champ FCE
+       (TCN_NUMBER, DATE_PAIEMENT, HEURE_PAIEMENT, CANAL_PAIEMENT, DATE_EMISSION_PHYSIQUE, CANAL_EMISSION,
+        DATE_MAX_DEPART, ANNULE, FCE)
+       values (:pRevTcnSingle indicator :pRevTcnSingleInd);
+    nbTCNtotal ++;
+  }
+  EXEC SQL COMMIT WORK;
+  
+  // FIXME_NPI: Complement de la trace pour analyse plus fine du CR137 - A SUPPRIMER QUAND LE PROBLEME SERA RESOLU
+  // cout <<DonneHeure()<<" Fin InsertTCN"<<endl;
+}
+// JRO -IC SRO - DT 23805 - Ajout flag is train en paramètre de la fonction
+void YmRevLireVec::AddInMapTpOD (YmRevPassagersParcours* pPasPar, YmRevSegments* pSegment, int isTrain)
+{
+  // FIXME_NPI: Complement de la trace pour analyse plus fine du CR137 - A SUPPRIMER QUAND LE PROBLEME SERA RESOLU
+  
+  
+  YmRevTpOD* pTpOD;
+  string lstrdatetemp;
+  
+  //
+
+  //lstrdatetemp=pSegment->getDateDepart().substr(6,2)+'/'+pSegment->getDateDepart().substr(4,2)+'/'+pSegment->getDateDepart().substr(0,4);
+  
+
+        //DT33254
+
+        if(pSegment->getUpgHan()==0 || (pSegment->getUpgHan()!=1 && pSegment->getUpgHan()!=2 )){
+            pTpOD = g_MapTpOD.isInMap (pSegment->getTrancheNo(), (char *)lstrdatetemp.c_str() ,
+           pSegment->getOrigineSeg(), pSegment->getDestinationSeg(),
+           pSegment->getClassOfService(), pSegment->getNumPalier(), pSegment->getNestLevel(), pSegment->getScx(), isTrain);
+        }else{
+            pTpOD = g_MapTpOD.isInMap (pSegment->getTrancheNo(), (char *)lstrdatetemp.c_str() ,
+           pSegment->getOrigineSeg(), pSegment->getDestinationSeg(),
+           pSegment->getClasseBooking(), pSegment->getPalierBooking(), pSegment->getNestLevel(), pSegment->getScx(), isTrain);
+        }
+
+  if (pTpOD)
+  {
+	
+    pTpOD->addRevenu (pSegment->getRevenu());
+    pTpOD->addPassagers (pPasPar->getNombrePassagers());
+  }
+  else
+  {
+  
+    TrLeg aTrLeg = g_MapTrLeg.InMap (pSegment->getTrancheNo(), pSegment->getOrigineSeg(), 
+					pSegment->getDestinationSeg(), //MHUE 11/09/06
+                                       (char *)lstrdatetemp.c_str(), //JRO DT 23805 IC SRO - Ajout isTrain
+									   isTrain );
+									   
+	
+      //DT33254
+          if(pSegment->getUpgHan()==0 || (pSegment->getUpgHan()!=1 && pSegment->getUpgHan()!=2 )){
+              pTpOD = new YmRevTpOD (pSegment->getTrancheNo(), aTrLeg.dpt_date_tr, pSegment->getOrigineSeg(),
+                     pSegment->getDestinationSeg(),pSegment->getClassOfService(), pSegment->getNumPalier(),
+                     pSegment->getNestLevel(), lstrdatetemp.c_str() , 
+               pPasPar->getNombrePassagers(), pSegment->getRevenu(), aTrLeg.indic_tgv,
+                     g_szDateFichier, g_HeureFichier, pSegment->getScx(), isTrain);
+        }else{
+            pTpOD = new YmRevTpOD (pSegment->getTrancheNo(), aTrLeg.dpt_date_tr, pSegment->getOrigineSeg(),
+                     pSegment->getDestinationSeg(),pSegment->getClasseBooking(), pSegment->getPalierBooking(),
+                     pSegment->getNestLevel(), lstrdatetemp.c_str() , 
+               pPasPar->getNombrePassagers(), pSegment->getRevenu(), aTrLeg.indic_tgv,
+                     g_szDateFichier, g_HeureFichier, pSegment->getScx(), isTrain);
+        }
+	
+	
+	
+    g_MapTpOD.Add (pTpOD);
+  }
+
+  // meme chose avec TpFBC
+  YmRevTpFBC* pTpFBC;
+  string sFare = pPasPar->getFareBasisCode();
+  if (!sFare.empty())
+  {
+    pTpFBC = g_MapTpFBC.isInMap ((int)pSegment->getTrancheNo(), (char *)lstrdatetemp.c_str() ,
+			     pSegment->getOrigineSeg(), pSegment->getDestinationSeg(), sFare);
+    if (pTpFBC)
+    {
+      pTpFBC->addRevenu (pSegment->getRevenu());
+      pTpFBC->addPassagers (pPasPar->getNombrePassagers());
+    }
+    else
+    {
+      TrLeg aTrLeg = g_MapTrLeg.InMap ((int)pSegment->getTrancheNo(), pSegment->getOrigineSeg(), 
+					pSegment->getDestinationSeg(), //MHUE 11/09/06
+                                       (char *)lstrdatetemp.c_str() );
+      pTpFBC = new YmRevTpFBC ((int)pSegment->getTrancheNo(), aTrLeg.dpt_date_tr, pSegment->getOrigineSeg(),
+                             pSegment->getDestinationSeg(), sFare, lstrdatetemp.c_str() , 
+			     pPasPar->getNombrePassagers(), pSegment->getRevenu(), aTrLeg.indic_tgv, g_szDateFichier);
+      g_MapTpFBC.Add (pTpFBC);
+    }
+  }
+  
+  // FIXME_NPI: Complement de la trace pour analyse plus fine du CR137 - A SUPPRIMER QUAND LE PROBLEME SERA RESOLU
+  //cout <<DonneHeure()<<" Fin AddInMapTpOD"<<endl;
+}

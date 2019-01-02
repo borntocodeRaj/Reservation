@@ -1,0 +1,42 @@
+#pragma ident "%Z% FileName: $RCSfile: YmRevMapTarifs.h,v $ Version: $Revision: 1.5 $ Date: $Date: 2006/04/27 09:08:46 $ %Z %"
+
+//## Module: YmRevMapTarifs
+//SFD
+//  Name:    YmRevMapTarifs.h
+//  Author:  JM. Grugeaux
+//  Desc:    description de la map des codes tarifs
+//EFD
+
+
+
+#ifndef YmRevMapTarifs_h
+#define YmRevMapTarifs_h 1
+
+//standard includes
+#include <map>
+#include <string>
+#include <YmRevDate.h>
+//application includes
+class YmRevTarifs;
+
+typedef multimap<string, YmRevTarifs*, less<string> > MapTarifsType;
+
+class YmRevMapTarifs
+  {
+  public:
+   YmRevMapTarifs();
+   ~YmRevMapTarifs();
+   int getNbFindMapTarif() { return nbFindMapTarif; }
+   int getSize() { return _MapTarifs.size();}
+
+   int init(); //initialisation de la map a partir de la base
+   //DM7978 - HRI - Ajout du numero de palier
+   YmRevTarifs* isInMap(string sCodeTarif, string sClassOfService, int sNumPalier, YmDate DateDepart);
+                //retourne pointeur si OK, NULL sinon
+
+  private:
+   MapTarifsType _MapTarifs;
+   int nbFindMapTarif; // debug, compteur de fois ou on a trouve une compensation
+  };
+
+#endif

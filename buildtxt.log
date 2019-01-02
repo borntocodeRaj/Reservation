@@ -1,0 +1,169 @@
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevTarifs.cpp -o YmRevTarifs.o
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevTypePassager.cpp -o YmRevTypePassager.o
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevDeviceType.cpp -o YmRevDeviceType.o
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevClassMapping.cpp -o YmRevClassMapping.o
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmThreadBase.cpp -o YmThreadBase.o
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevAnnulation.cpp -o YmRevAnnulation.o
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevTcn.cpp -o YmRevTcn.o
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevTpOD.cpp -o YmRevTpOD.o
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevTpFBC.cpp -o YmRevTpFBC.o
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevRetraits.cpp -o YmRevRetraits.o
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevSegments.cpp -o YmRevSegments.o
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevPassagersParcours.cpp -o YmRevPassagersParcours.o
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevDate.cpp -o YmRevDate.o
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevTrNonYield.cpp -o YmRevTrNonYield.o
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevEcrireVec.cpp -o YmRevEcrireVec.o
+proc code=cpp 'sys_include=(/usr/lib/oracle/11.2/client64/precomp/public,/opt/SUNWspro6u1/WS6U1/include/CC4,/usr/include)' userid=UDSNRV0/UDSNRV0 sqlcheck=full parse=none cpp_suffix=cpp common_parser=yes iname=YmRevMapTarifs.pc 
+
+Pro*C/C++: Release 11.2.0.1.0 - Production on Fri Oct 12 13:27:31 2018
+
+Copyright (c) 1982, 2009, Oracle and/or its affiliates.  All rights reserved.
+
+System default option values taken from: /usr/lib/oracle/11.2/client64/precomp/admin/pcscfg.cfg
+
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevMapTarifs.cpp -o YmRevMapTarifs.o
+proc code=cpp 'sys_include=(/usr/lib/oracle/11.2/client64/precomp/public,/opt/SUNWspro6u1/WS6U1/include/CC4,/usr/include)' userid=UDSNRV0/UDSNRV0 sqlcheck=full parse=none cpp_suffix=cpp common_parser=yes iname=YmRevMapTypePassager.pc 
+
+Pro*C/C++: Release 11.2.0.1.0 - Production on Fri Oct 12 13:27:32 2018
+
+Copyright (c) 1982, 2009, Oracle and/or its affiliates.  All rights reserved.
+
+System default option values taken from: /usr/lib/oracle/11.2/client64/precomp/admin/pcscfg.cfg
+
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevMapTypePassager.cpp -o YmRevMapTypePassager.o
+proc code=cpp 'sys_include=(/usr/lib/oracle/11.2/client64/precomp/public,/opt/SUNWspro6u1/WS6U1/include/CC4,/usr/include)' userid=UDSNRV0/UDSNRV0 sqlcheck=full parse=none cpp_suffix=cpp common_parser=yes iname=YmRevMapDeviceType.pc 
+
+Pro*C/C++: Release 11.2.0.1.0 - Production on Fri Oct 12 13:27:32 2018
+
+Copyright (c) 1982, 2009, Oracle and/or its affiliates.  All rights reserved.
+
+System default option values taken from: /usr/lib/oracle/11.2/client64/precomp/admin/pcscfg.cfg
+
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevMapDeviceType.cpp -o YmRevMapDeviceType.o
+proc code=cpp 'sys_include=(/usr/lib/oracle/11.2/client64/precomp/public,/opt/SUNWspro6u1/WS6U1/include/CC4,/usr/include)' userid=UDSNRV0/UDSNRV0 sqlcheck=full parse=none cpp_suffix=cpp common_parser=yes iname=YmRevMapClassMapping.pc 
+
+Pro*C/C++: Release 11.2.0.1.0 - Production on Fri Oct 12 13:27:33 2018
+
+Copyright (c) 1982, 2009, Oracle and/or its affiliates.  All rights reserved.
+
+System default option values taken from: /usr/lib/oracle/11.2/client64/precomp/admin/pcscfg.cfg
+
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevMapClassMapping.cpp -o YmRevMapClassMapping.o
+proc code=cpp 'sys_include=(/usr/lib/oracle/11.2/client64/precomp/public,/opt/SUNWspro6u1/WS6U1/include/CC4,/usr/include)' userid=UDSNRV0/UDSNRV0 sqlcheck=full parse=none cpp_suffix=cpp common_parser=yes iname=YmRevInfoBatch.pc 
+
+Pro*C/C++: Release 11.2.0.1.0 - Production on Fri Oct 12 13:27:33 2018
+
+Copyright (c) 1982, 2009, Oracle and/or its affiliates.  All rights reserved.
+
+System default option values taken from: /usr/lib/oracle/11.2/client64/precomp/admin/pcscfg.cfg
+
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevInfoBatch.cpp -o YmRevInfoBatch.o
+proc code=cpp 'sys_include=(/usr/lib/oracle/11.2/client64/precomp/public,/opt/SUNWspro6u1/WS6U1/include/CC4,/usr/include)' userid=UDSNRV0/UDSNRV0 sqlcheck=full parse=none cpp_suffix=cpp common_parser=yes iname=YmRevMapTrLeg.pc 
+
+Pro*C/C++: Release 11.2.0.1.0 - Production on Fri Oct 12 13:27:34 2018
+
+Copyright (c) 1982, 2009, Oracle and/or its affiliates.  All rights reserved.
+
+System default option values taken from: /usr/lib/oracle/11.2/client64/precomp/admin/pcscfg.cfg
+
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevMapTrLeg.cpp -o YmRevMapTrLeg.o
+proc code=cpp 'sys_include=(/usr/lib/oracle/11.2/client64/precomp/public,/opt/SUNWspro6u1/WS6U1/include/CC4,/usr/include)' userid=UDSNRV0/UDSNRV0 sqlcheck=full parse=none cpp_suffix=cpp common_parser=yes iname=YmRevMapTpOD.pc 
+
+Pro*C/C++: Release 11.2.0.1.0 - Production on Fri Oct 12 13:27:34 2018
+
+Copyright (c) 1982, 2009, Oracle and/or its affiliates.  All rights reserved.
+
+System default option values taken from: /usr/lib/oracle/11.2/client64/precomp/admin/pcscfg.cfg
+
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevMapTpOD.cpp -o YmRevMapTpOD.o
+proc code=cpp 'sys_include=(/usr/lib/oracle/11.2/client64/precomp/public,/opt/SUNWspro6u1/WS6U1/include/CC4,/usr/include)' userid=UDSNRV0/UDSNRV0 sqlcheck=full parse=none cpp_suffix=cpp common_parser=yes iname=YmRevMapTpFBC.pc 
+
+Pro*C/C++: Release 11.2.0.1.0 - Production on Fri Oct 12 13:27:35 2018
+
+Copyright (c) 1982, 2009, Oracle and/or its affiliates.  All rights reserved.
+
+System default option values taken from: /usr/lib/oracle/11.2/client64/precomp/admin/pcscfg.cfg
+
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevMapTpFBC.cpp -o YmRevMapTpFBC.o
+proc code=cpp 'sys_include=(/usr/lib/oracle/11.2/client64/precomp/public,/opt/SUNWspro6u1/WS6U1/include/CC4,/usr/include)' userid=UDSNRV0/UDSNRV0 sqlcheck=full parse=none cpp_suffix=cpp common_parser=yes iname=YmRevAnnuTpOD.pc 
+
+Pro*C/C++: Release 11.2.0.1.0 - Production on Fri Oct 12 13:27:35 2018
+
+Copyright (c) 1982, 2009, Oracle and/or its affiliates.  All rights reserved.
+
+System default option values taken from: /usr/lib/oracle/11.2/client64/precomp/admin/pcscfg.cfg
+
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevAnnuTpOD.cpp -o YmRevAnnuTpOD.o
+proc code=cpp 'sys_include=(/usr/lib/oracle/11.2/client64/precomp/public,/opt/SUNWspro6u1/WS6U1/include/CC4,/usr/include)' userid=UDSNRV0/UDSNRV0 sqlcheck=full parse=none cpp_suffix=cpp common_parser=yes iname=YmRevTpNonTraite.pc 
+
+Pro*C/C++: Release 11.2.0.1.0 - Production on Fri Oct 12 13:27:36 2018
+
+Copyright (c) 1982, 2009, Oracle and/or its affiliates.  All rights reserved.
+
+System default option values taken from: /usr/lib/oracle/11.2/client64/precomp/admin/pcscfg.cfg
+
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevTpNonTraite.cpp -o YmRevTpNonTraite.o
+proc code=cpp 'sys_include=(/usr/lib/oracle/11.2/client64/precomp/public,/opt/SUNWspro6u1/WS6U1/include/CC4,/usr/include)' userid=UDSNRV0/UDSNRV0 sqlcheck=full parse=none cpp_suffix=cpp common_parser=yes iname=YmRevTpFBCNonTraite.pc 
+
+Pro*C/C++: Release 11.2.0.1.0 - Production on Fri Oct 12 13:27:36 2018
+
+Copyright (c) 1982, 2009, Oracle and/or its affiliates.  All rights reserved.
+
+System default option values taken from: /usr/lib/oracle/11.2/client64/precomp/admin/pcscfg.cfg
+
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevTpFBCNonTraite.cpp -o YmRevTpFBCNonTraite.o
+proc code=cpp 'sys_include=(/usr/lib/oracle/11.2/client64/precomp/public,/opt/SUNWspro6u1/WS6U1/include/CC4,/usr/include)' userid=UDSNRV0/UDSNRV0 sqlcheck=full parse=none cpp_suffix=cpp common_parser=yes iname=YmRevMess.pc 
+
+Pro*C/C++: Release 11.2.0.1.0 - Production on Fri Oct 12 13:27:37 2018
+
+Copyright (c) 1982, 2009, Oracle and/or its affiliates.  All rights reserved.
+
+System default option values taken from: /usr/lib/oracle/11.2/client64/precomp/admin/pcscfg.cfg
+
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevMess.cpp -o YmRevMess.o
+proc code=cpp 'sys_include=(/usr/lib/oracle/11.2/client64/precomp/public,/opt/SUNWspro6u1/WS6U1/include/CC4,/usr/include)' userid=UDSNRV0/UDSNRV0 sqlcheck=full parse=none cpp_suffix=cpp common_parser=yes iname=YmRevLireRetraits.pc 
+
+Pro*C/C++: Release 11.2.0.1.0 - Production on Fri Oct 12 13:27:37 2018
+
+Copyright (c) 1982, 2009, Oracle and/or its affiliates.  All rights reserved.
+
+System default option values taken from: /usr/lib/oracle/11.2/client64/precomp/admin/pcscfg.cfg
+
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevLireRetraits.cpp -o YmRevLireRetraits.o
+proc code=cpp 'sys_include=(/usr/lib/oracle/11.2/client64/precomp/public,/opt/SUNWspro6u1/WS6U1/include/CC4,/usr/include)' userid=UDSNRV0/UDSNRV0 sqlcheck=full parse=none cpp_suffix=cpp common_parser=yes iname=YmRevMain.pc 
+
+Pro*C/C++: Release 11.2.0.1.0 - Production on Fri Oct 12 13:27:38 2018
+
+Copyright (c) 1982, 2009, Oracle and/or its affiliates.  All rights reserved.
+
+System default option values taken from: /usr/lib/oracle/11.2/client64/precomp/admin/pcscfg.cfg
+
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevMain.cpp -o YmRevMain.o
+proc code=cpp 'sys_include=(/usr/lib/oracle/11.2/client64/precomp/public,/opt/SUNWspro6u1/WS6U1/include/CC4,/usr/include)' userid=UDSNRV0/UDSNRV0 sqlcheck=full parse=none cpp_suffix=cpp common_parser=yes iname=YmRevMapTrNonYield.pc 
+
+Pro*C/C++: Release 11.2.0.1.0 - Production on Fri Oct 12 13:27:39 2018
+
+Copyright (c) 1982, 2009, Oracle and/or its affiliates.  All rights reserved.
+
+System default option values taken from: /usr/lib/oracle/11.2/client64/precomp/admin/pcscfg.cfg
+
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevMapTrNonYield.cpp -o YmRevMapTrNonYield.o
+proc code=cpp 'sys_include=(/usr/lib/oracle/11.2/client64/precomp/public,/opt/SUNWspro6u1/WS6U1/include/CC4,/usr/include)' userid=UDSNRV0/UDSNRV0 sqlcheck=full parse=none cpp_suffix=cpp common_parser=yes iname=YmRevLireVec.pc 
+
+Pro*C/C++: Release 11.2.0.1.0 - Production on Fri Oct 12 13:27:39 2018
+
+Copyright (c) 1982, 2009, Oracle and/or its affiliates.  All rights reserved.
+
+System default option values taken from: /usr/lib/oracle/11.2/client64/precomp/admin/pcscfg.cfg
+
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevLireVec.cpp -o YmRevLireVec.o
+proc code=cpp 'sys_include=(/usr/lib/oracle/11.2/client64/precomp/public,/opt/SUNWspro6u1/WS6U1/include/CC4,/usr/include)' userid=UDSNRV0/UDSNRV0 sqlcheck=full parse=none cpp_suffix=cpp common_parser=yes iname=YmRevLireAnnu.pc 
+
+Pro*C/C++: Release 11.2.0.1.0 - Production on Fri Oct 12 13:27:40 2018
+
+Copyright (c) 1982, 2009, Oracle and/or its affiliates.  All rights reserved.
+
+System default option values taken from: /usr/lib/oracle/11.2/client64/precomp/admin/pcscfg.cfg
+
+g++ -lclntsh  -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -g -D POSIX_THREAD -D_REENTRANT -I -I/usr/lib/oracle/11.2/client64/precomp/public -I/usr/lib/oracle/11.2/client64/plsql/public  -I/home/apptymd/workspace/TGV/appl/src/revenus1 -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -c  YmRevLireAnnu.cpp -o YmRevLireAnnu.o
+gcc  -o ../../bin/revenusYmRevTarifs.o YmRevTypePassager.o YmRevDeviceType.o YmRevClassMapping.o YmThreadBase.o YmRevAnnulation.o YmRevTcn.o YmRevTpOD.o YmRevTpFBC.o YmRevRetraits.o YmRevSegments.o YmRevPassagersParcours.o YmRevDate.o YmRevTrNonYield.o YmRevEcrireVec.o YmRevMapTarifs.o YmRevMapTypePassager.o YmRevMapDeviceType.o YmRevMapClassMapping.o YmRevInfoBatch.o YmRevMapTrLeg.o YmRevMapTpOD.o YmRevMapTpFBC.o YmRevAnnuTpOD.o YmRevTpNonTraite.o YmRevTpFBCNonTraite.o YmRevMess.o YmRevLireRetraits.o YmRevMain.o YmRevMapTrNonYield.o YmRevLireVec.o YmRevLireAnnu.o -L -L/usr/lib/oracle/11.2/client64/lib  -lc -lclntsh -lm -ldl -lm -lpthread -lnsl  -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -DSQLCA_STORAGE_CLASS=extern -L/usr/lib/oracle/11.2/client64/lib/ -lclntsh -o ./revenus

@@ -1,0 +1,247 @@
+#pragma ident "%Z% FileName: $RCSfile: YmRevMapTpFBC.pc,v $ Version: $Revision: 1.2 $ Date: $Date: 2009/02/20 13:10:57 $ %Z %"
+
+//## Module: YmRevMapTpFBC
+//SFD
+//  Name:    YmRevMapTpFBC.cpp
+//  Author:  JM. Grugeaux
+//  Desc:    traitement de la liste des code tarifs
+//EFD
+
+
+using namespace std;
+
+//standard includes
+#include <iterator>
+#include <sqlca.h>
+#include <string.h>
+#include <stdlib.h>
+#include <iostream>
+#include <stdio.h>
+//application includes
+#include <YmRevGlobal.h>
+#include <YmRevMapTpFBC.h>
+
+//## Configuration du contexte de base JRO IC SRO DT 23805
+extern sql_context ctxRevMain;
+EXEC SQL CONTEXT USE :ctxRevMain;
+
+EXEC SQL BEGIN DECLARE SECTION;
+
+#define MAX_NB_TPREVFBC 1000
+
+int nbInBulk;
+
+struct TPREV_FBC {
+        int tranche_no;
+        char dpt_date[11];
+        varchar orig[6];
+        varchar dest[6];
+        varchar fare_basis_code[9];
+        char date_od[11];
+        int nb_voyageurs;
+        int market_id;
+        int revenu;
+      } pTpRevFBCTable[MAX_NB_TPREVFBC];
+
+struct TPREV_FBC_NON_TRAITE {
+        int tranche_no;
+        char dpt_date[11];
+        varchar orig[6];
+        varchar dest[6];
+        varchar fare_basis_code[9];
+        char date_od[11];
+        int nb_voyageurs;
+        int revenu;
+        char date_fichier[11];
+      } pTpRevFBCNTTable[MAX_NB_TPREVFBC];
+
+EXEC SQL END DECLARE SECTION;
+
+
+
+YmRevMapTpFBC::YmRevMapTpFBC()
+{
+}
+
+YmRevMapTpFBC::~YmRevMapTpFBC()
+{
+   Clear();
+}
+
+void YmRevMapTpFBC::Clear()
+{
+    MapTpFBCType::iterator iPos = _MapTpFBC.begin();
+    MapTpFBCType::iterator iFin = _MapTpFBC.end();
+
+    YmRevTpFBC* pTpFBC;
+    while (iPos!=iFin)
+       {
+       pTpFBC =iPos->second;
+       delete pTpFBC;
+       iPos++;
+       }
+    _MapTpFBC.clear();
+}
+
+void YmRevMapTpFBC::Add (YmRevTpFBC* pTpFBC)
+{
+  string skey;
+  char cTrNo[10];
+  sprintf (cTrNo, "%d", pTpFBC->getTrancheNo());
+  skey = cTrNo;
+  skey += pTpFBC->getDateOd();
+  skey += pTpFBC->getOrig();
+  skey += pTpFBC->getDest();
+  skey += pTpFBC->getFareBasisCode();
+  _MapTpFBC[skey] = pTpFBC;
+}
+
+YmRevTpFBC* YmRevMapTpFBC::isInMap(int tranche_no, char* date_od, string orig, string dest, string fare_basis_code)
+                                 //retourne un pointeur sur YmRevTpFBC si deja present
+    {
+    MapTpFBCType::iterator iPos;
+    YmRevTpFBC* pTpFBC;
+
+    char cTrNo[10];
+    sprintf (cTrNo, "%d", tranche_no);
+    string skey = cTrNo;
+    skey += date_od;
+    skey += orig;
+    skey += dest;
+    skey += fare_basis_code;
+    iPos = _MapTpFBC.find (skey);
+    if (iPos == _MapTpFBC.end())
+      return NULL;
+
+    pTpFBC = iPos->second;
+    return pTpFBC;
+    }
+
+
+void YmRevMapTpFBC::InsertTPREVFBC()
+{
+  if (!strcmp (g_Client, "SN") && !g_forceFBC)
+    return; // Si SNCF et pas de FBC force, on ne fait rien
+  int totalRevenu = 0;
+  int totalPassagers = 0;
+  cout<<DonneHeure()<<" Ecriture dans dans TPREV_FBC_OD"<<endl;
+  
+  EXEC SQL WHENEVER SQLERROR DO sql_error  ("INSERT IN TPREV_FBC_OD en erreur", 0);
+  MapTpFBCType::iterator iPos = _MapTpFBC.begin();
+  MapTpFBCType::iterator iFin = _MapTpFBC.end();
+
+  YmRevTpFBC* pTpFBC;
+  nbInBulk = MAX_NB_TPREVFBC;
+  int i = 0;
+  int nbl = 0;
+  while (iPos!=iFin)
+  {
+     pTpFBC =iPos->second;
+     if (pTpFBC->getTypeFlag() != 2)
+     {
+       pTpRevFBCTable[i].tranche_no = pTpFBC->getTrancheNo();
+       strcpy (pTpRevFBCTable[i].dpt_date, pTpFBC->getDptDate());
+       strcpy ((char*)pTpRevFBCTable[i].orig.arr, pTpFBC->getOrig().c_str());
+       pTpRevFBCTable[i].orig.len = pTpFBC->getOrig().size();
+       strcpy ((char*)pTpRevFBCTable[i].dest.arr, pTpFBC->getDest().c_str());
+       pTpRevFBCTable[i].dest.len = pTpFBC->getDest().size();
+       strcpy ((char*)pTpRevFBCTable[i].fare_basis_code.arr, pTpFBC->getFareBasisCode().c_str());
+       pTpRevFBCTable[i].fare_basis_code.len = pTpFBC->getFareBasisCode().size();
+       strcpy (pTpRevFBCTable[i].date_od, pTpFBC->getDateOd());
+       pTpRevFBCTable[i].nb_voyageurs = pTpFBC->getNbVoyageurs();
+       pTpRevFBCTable[i].market_id = 0;
+       pTpRevFBCTable[i].revenu = pTpFBC->getRevenu();
+
+       totalPassagers += pTpFBC->getNbVoyageurs();
+       totalRevenu += pTpFBC->getRevenu();
+       i++;
+       nbl ++;
+     }
+     iPos++;
+
+     if (i == nbInBulk)
+     {
+       EXEC SQL FOR :nbInBulk INSERT INTO TPREV_FBC_OD
+         (TRANCHE_NO, DPT_DATE, ORIG, DEST, FARE_BASIS_CODE, DATE_OD, NB_VOYAGEURS, MARKET_ID, REVENU)
+         values (:pTpRevFBCTable);
+       EXEC SQL COMMIT WORK;
+       cout<<"t";
+       i = 0;
+     }
+  }
+  if (i)
+  { // On insere le reliquat
+    nbInBulk = i;
+    EXEC SQL FOR :nbInBulk INSERT INTO TPREV_FBC_OD
+         (TRANCHE_NO, DPT_DATE, ORIG, DEST, FARE_BASIS_CODE, DATE_OD, NB_VOYAGEURS,
+          MARKET_ID, REVENU)
+         values (:pTpRevFBCTable);
+    EXEC SQL COMMIT WORK;
+    cout<<"t";
+  }
+  cout<<endl;
+  cout<<DonneHeure()<<" Fin insert "<<nbl<<" lignes dans TPREV_FBC_OD, totRevenu="<<totalRevenu<<" totPas="<<totalPassagers<<endl;
+}
+
+void YmRevMapTpFBC::InsertTPREVFBCNONTRAITE()
+{
+  if (!strcmp (g_Client, "SN") && !g_forceFBC)
+    return; // Si SNCF et pas de FBC force, on ne fait rien
+  int totalRevenu = 0;
+  int totalPassagers = 0;
+  cout<<DonneHeure()<<" Ecriture dans dans TPREV_FBC_NON_TRAITE"<<endl;
+
+  EXEC SQL WHENEVER SQLERROR DO sql_error  ("INSERT IN TPREV_FBC_NON_TRAITE en erreur", 0);
+  MapTpFBCType::iterator iPos = _MapTpFBC.begin();
+  MapTpFBCType::iterator iFin = _MapTpFBC.end();
+
+  YmRevTpFBC* pTpFBC;
+  nbInBulk = MAX_NB_TPREVFBC;
+  int i = 0;
+  int nbl = 0;
+  while (iPos!=iFin)
+  {
+     pTpFBC =iPos->second;
+     if (pTpFBC->getTypeFlag() == 2)
+     {
+       pTpRevFBCNTTable[i].tranche_no = pTpFBC->getTrancheNo();
+       strcpy (pTpRevFBCNTTable[i].dpt_date, pTpFBC->getDptDate());
+       strcpy ((char*)pTpRevFBCNTTable[i].orig.arr, pTpFBC->getOrig().c_str());
+       pTpRevFBCNTTable[i].orig.len = pTpFBC->getOrig().size();
+       strcpy ((char*)pTpRevFBCNTTable[i].dest.arr, pTpFBC->getDest().c_str());
+       pTpRevFBCNTTable[i].dest.len = pTpFBC->getDest().size();
+       strcpy ((char*)pTpRevFBCNTTable[i].fare_basis_code.arr, pTpFBC->getFareBasisCode().c_str());
+       pTpRevFBCNTTable[i].fare_basis_code.len = pTpFBC->getFareBasisCode().size();
+       strcpy (pTpRevFBCNTTable[i].date_od, pTpFBC->getDateOd());
+       pTpRevFBCNTTable[i].nb_voyageurs = pTpFBC->getNbVoyageurs();
+       pTpRevFBCNTTable[i].revenu = pTpFBC->getRevenu();
+       strcpy (pTpRevFBCNTTable[i].date_fichier, pTpFBC->getDateFichier());
+
+       totalPassagers += pTpFBC->getNbVoyageurs();
+       totalRevenu += pTpFBC->getRevenu();
+       i++;
+       nbl ++;
+     }
+     iPos++;
+     if (i == nbInBulk)
+     {
+       EXEC SQL FOR :nbInBulk INSERT INTO TPREV_FBC_NON_TRAITE
+         (TRANCHE_NO, DPT_DATE, ORIG, DEST, FARE_BASIS_CODE, DATE_OD, NB_VOYAGEURS, REVENU, DATE_FICHIER)
+         values (:pTpRevFBCNTTable);
+       EXEC SQL COMMIT WORK;
+       cout<<"t";
+       i = 0;
+     }
+  }
+  if (i)
+  { // On insere le reliquat
+    nbInBulk = i;
+    EXEC SQL FOR :nbInBulk INSERT INTO TPREV_FBC_NON_TRAITE
+         (TRANCHE_NO, DPT_DATE, ORIG, DEST, FARE_BASIS_CODE, DATE_OD, NB_VOYAGEURS, REVENU, DATE_FICHIER)
+         values (:pTpRevFBCNTTable);
+    EXEC SQL COMMIT WORK;
+    cout<<"t";
+  }
+  cout<<endl;
+  cout<<DonneHeure()<<" Fin insert "<<nbl<<" lignes dans TPREV_FBC_NON_TRAITE, totRevenu="<<totalRevenu<<" totPas="<<totalPassagers<<endl;
+}

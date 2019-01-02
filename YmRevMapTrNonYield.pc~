@@ -1,0 +1,128 @@
+#pragma ident "%Z% FileName: $RCSfile: YmRevMapTrNonYield.pc,v $ Version: $Revision: 1.4 $ Date: $Date: 2009/02/20 13:10:57 $ %Z %"
+
+//## Module: YmRevMapTrNonYield
+//SFD
+//  Name:    YmRevMapTrNonYield.pc
+//  Author:  M. Hue
+//  Desc:    code de la map de la relation classe de service/classe de controle (nest level)
+//EFD
+
+
+using namespace std;
+
+//standard includes
+#include <map>
+#include <string>
+#include <iterator>
+#include </usr/lib/oracle/11.2/client64/precomp/public/sqlca.h>
+
+//application includes
+#include <YmRevTrNonYield.h>
+#include <YmRevMapTrNonYield.h>
+#include <YmRevDate.h>
+#include <YmRevGlobal.h>
+
+
+//## Configuration du contexte de base JRO IC SRO DT 23805
+extern sql_context ctxRevMain;
+EXEC SQL CONTEXT USE :ctxRevMain;
+
+YmRevMapTrNonYield::~YmRevMapTrNonYield()
+{
+    mapTrNonYieldType::iterator iPos = _MapTrNonYield.begin();
+    mapTrNonYieldType::iterator iFin = _MapTrNonYield.end();
+
+    YmRevTrNonYield* pRevTrNonYield;
+    while (iPos!=iFin)
+       {
+       pRevTrNonYield =iPos->second;
+       delete pRevTrNonYield;
+       iPos++;
+       }
+    _MapTrNonYield.clear();
+}
+
+int YmRevMapTrNonYield::init() //lecture des donnees dans les tables THALES
+{
+    int iRet=0;
+    int iNb=0;
+    string szDptDate ;
+    string Dpt_date;
+    EXEC SQL BEGIN DECLARE SECTION;
+       int trancheNo;
+       char DptDate[11];
+       varchar dptdate[11];
+    EXEC SQL END DECLARE SECTION;
+
+    EXEC SQL WHENEVER SQLERROR DO sql_error((char *)"virtual nesting illisible",1);
+    EXEC SQL DECLARE cMapTrNonYield CURSOR FOR
+      SELECT tranche_no, TO_CHAR(dpt_date,'YYYYMMDD')
+      FROM rev_tranches_non_yield
+      ORDER BY tranche_no, dpt_date;
+
+    EXEC SQL OPEN cMapTrNonYield ;
+
+    EXEC SQL WHENEVER NOT FOUND DO break;
+    
+    char szKey[20];
+
+    while(1)
+       {
+       EXEC SQL FETCH cMapTrNonYield INTO :trancheNo, :DptDate; 
+       iNb++;
+      dptdate.arr[dptdate.len]= '\0';
+       
+      Dpt_date = string(DptDate,10);
+       
+      
+      
+       szDptDate = Dpt_date.c_str();
+        YmDate szDptDate ;
+       
+       YmRevTrNonYield *pRevTrNonYield = new YmRevTrNonYield(trancheNo, szDptDate);
+       sprintf(szKey,"%06d%s",trancheNo, dptdate.arr);
+       //_MapTrNonYield.insert(mapTrNonYieldType::value_type(szKey, pRevTrNonYield));
+       _MapTrNonYield[(string)szKey]= pRevTrNonYield;
+       }
+    EXEC SQL CLOSE cMapTrNonYield ;
+    if  (iNb==0)
+        iRet=-1;
+    else
+        iRet=0;
+    return iRet;
+
+}
+
+short YmRevMapTrNonYield::isInMap(int trancheNo_, YmDate& DptDate_)
+   // si la tranche existe pour D, D-1 ou D+1 elle est non yieldie
+// retour=0 si pas trouve
+{
+   mapTrNonYieldType::iterator iPos;
+   YmRevTrNonYield* pYmRevTrNonYield;
+   
+
+    char szKey[20];
+    sprintf(szKey,"%06d%4d%02d%02d",trancheNo_,DptDate_.year(), DptDate_.month(), DptDate_.day());
+    iPos = _MapTrNonYield.find ((string)szKey);
+    if (iPos != _MapTrNonYield.end()) 
+       return 1;
+    else
+      {
+      DptDate_-=1;
+      sprintf(szKey,"%06d%4d%02d%02d",trancheNo_,DptDate_.year(), DptDate_.month(), DptDate_.day());
+      iPos = _MapTrNonYield.find ((string)szKey);
+      if (iPos != _MapTrNonYield.end()) 
+         return 1;
+      else
+        {
+        DptDate_+=2;
+        sprintf(szKey,"%06d%4d%02d%02d",trancheNo_,DptDate_.year(), DptDate_.month(), DptDate_.day());
+        iPos = _MapTrNonYield.find ((string)szKey);
+        if (iPos != _MapTrNonYield.end()) 
+           return 1;
+        }
+      }
+
+return 0;
+}
+

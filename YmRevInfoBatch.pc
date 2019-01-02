@@ -1,0 +1,104 @@
+#pragma ident "%Z% FileName: $RCSfile: YmRevInfoBatch.pc,v $ Version: $Revision: 1.2 $ Date: $Date: 2006/04/03 16:04:29 $ %Z %"
+
+//## Module: YmRevInfoBatch
+//SFD
+//  Name:    YmRevInfoBatch.cpp
+//  Author:  JM. Grugeaux
+//  Desc:    Lecture et mise a jour de la table rev_info_batch
+//EFD
+
+
+using namespace std;
+
+//standard includes
+#include <iterator>
+#include </usr/lib/oracle/11.2/client64/precomp/public/sqlca.h>
+
+//application includes
+#include <YmRevGlobal.h>
+#include <YmRevInfoBatch.h>
+
+
+//## Global
+extern sql_context ctxRevMain;
+
+EXEC SQL CONTEXT USE :ctxRevMain;
+
+YmRevInfoBatch::YmRevInfoBatch()
+  {
+  }
+YmRevInfoBatch::~YmRevInfoBatch()
+  {
+  }
+
+
+string YmRevInfoBatch::getAssocData(string key_info) // renvoi la valeur associe a la clef key_info. Vide si non trouve
+{
+    InfoBatchType::iterator iPos;
+    string sRtn = "" ;
+
+    iPos = _InfoBatch.find (key_info);
+    if (iPos != _InfoBatch.end())
+      sRtn = iPos->second;
+    return sRtn;
+}
+
+
+// met a jour la Map en memoire, et aussi la table rev_info_batch
+void YmRevInfoBatch::setAssocData(string key_info, string assoc_data)
+{
+    _InfoBatch[key_info] = assoc_data;
+    EXEC SQL BEGIN DECLARE SECTION;
+       varchar vcKeyInfo[31];
+       varchar vcAssocData[31];
+    EXEC SQL END DECLARE SECTION;
+    strcpy ((char*) vcKeyInfo.arr, key_info.c_str());
+    vcKeyInfo.len = key_info.size();
+    strcpy ((char*) vcAssocData.arr, assoc_data.c_str());
+    vcAssocData.len = assoc_data.size();
+    EXEC SQL UPDATE REV_INFO_BATCH set ASSOC_DATA = :vcAssocData, posted_time = sysdate, user_id = user
+             WHERE KEY_INFO = :vcKeyInfo;
+    EXEC SQL COMMIT;
+}
+
+
+int YmRevInfoBatch::init() //initialisation de la map a partir de la base
+                                    // 0 = OK, -1 = pas trouve
+{
+    int iRet=0;
+    int iNb=0;
+    EXEC SQL BEGIN DECLARE SECTION;
+       varchar vcKeyInfo[31];
+       varchar vcAssocData[31];
+       short inull_AssocData = -1;
+    EXEC SQL END DECLARE SECTION;
+    
+    EXEC SQL WHENEVER SQLERROR DO sql_error((char *)"rev_info_batch illisible",1);
+	
+    EXEC SQL DECLARE cInfoBatch CURSOR FOR
+         SELECT key_info, assoc_data FROM rev_info_batch ORDER BY key_info;
+    EXEC SQL OPEN cInfoBatch ;
+
+    EXEC SQL WHENEVER NOT FOUND DO break;
+    string skeyInfo;
+    string sAssocData;
+    while(1)
+       {
+       EXEC SQL FETCH cInfoBatch INTO :vcKeyInfo, :vcAssocData:inull_AssocData;
+       if (inull_AssocData == -1)
+         sAssocData = "";
+       iNb++;
+       vcKeyInfo.arr[vcKeyInfo.len] = '\0';
+       vcAssocData.arr[vcAssocData.len] = '\0';
+       skeyInfo = (char*)vcKeyInfo.arr; 
+       sAssocData = (char*)vcAssocData.arr;
+       _InfoBatch[skeyInfo] = sAssocData;
+       }
+    EXEC SQL CLOSE cInfoBatch ;
+    if  (iNb==0) 
+        iRet=-1;
+    else
+        iRet=0;
+    return iRet;
+}
+

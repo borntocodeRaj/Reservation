@@ -1,0 +1,91 @@
+
+//## Module: YmRevMapClassMapping
+//SFD
+//  Name:    YmRevMapClassMapping.pc
+//  Author:  PL. FLORENT
+//  Desc:    traitement de la liste des ClassMapping
+//EFD
+
+
+using namespace std;
+
+//standard includes
+#include <iterator>
+#include </usr/lib/oracle/11.2/client64/precomp/public/sqlca.h>
+#include <string.h>
+//application includes
+#include <YmRevGlobal.h>
+#include <YmRevMapClassMapping.h>
+
+//## Configuration du contexte de base JRO IC SRO DT 23805
+extern sql_context ctxRevMain;
+EXEC SQL CONTEXT USE :ctxRevMain;
+
+YmRevMapClassMapping::YmRevMapClassMapping()
+  {
+  }
+YmRevMapClassMapping::~YmRevMapClassMapping()
+  {
+    MapClassMappingType::iterator iPos = _MapClassMapping.begin();
+    MapClassMappingType::iterator iFin = _MapClassMapping.end();
+
+    YmRevClassMapping* pRevClassMapping;
+    while (iPos!=iFin)
+       {
+       pRevClassMapping =iPos->second;
+       delete pRevClassMapping;
+       iPos++;
+       }
+    _MapClassMapping.clear();
+  }
+
+int YmRevMapClassMapping::init() //initialisation de la map a partir de la base
+                                    // 0 = OK, -1 = pas trouve
+    {
+    int iRet=0;
+    int iNb=0;
+    EXEC SQL BEGIN DECLARE SECTION;
+       varchar vcClassOrig[3];
+       varchar vcClassDest[3];
+    EXEC SQL END DECLARE SECTION;
+    
+    EXEC SQL WHENEVER SQLERROR DO sql_error((char *)"liste des ClassMapping illisible",1);
+    EXEC SQL DECLARE cMapClassMapping CURSOR FOR
+         SELECT class_orig, class_dest FROM rev_class_mapping ORDER BY class_orig;
+    EXEC SQL OPEN cMapClassMapping ;
+
+    EXEC SQL WHENEVER NOT FOUND DO break;
+    string skey;
+    string sclassdest;
+    while(1)
+       {
+       EXEC SQL FETCH cMapClassMapping INTO :vcClassOrig, :vcClassDest;
+       iNb++;
+       vcClassOrig.arr[vcClassOrig.len] = '\0';
+       vcClassDest.arr[vcClassDest.len] = '\0';
+       skey = (char*)vcClassOrig.arr; 
+       sclassdest = (char*)vcClassDest.arr; 
+       YmRevClassMapping *pRevClassMapping = new YmRevClassMapping(skey, sclassdest);
+       _MapClassMapping[skey] = pRevClassMapping;
+       }
+    EXEC SQL CLOSE cMapClassMapping ;
+    if  (iNb==0) 
+        iRet=-1;
+    else
+        iRet=0;
+    return iRet;
+    }
+
+YmRevClassMapping* YmRevMapClassMapping::isInMap(string sClassMapping) //retourne pointeur si OK, NULL sinon
+    {
+    MapClassMappingType::iterator iPos;
+    YmRevClassMapping* pYmRevClassMapping;
+
+    iPos = _MapClassMapping.find (sClassMapping);
+    if (iPos == _MapClassMapping.end())
+      return NULL;
+
+    pYmRevClassMapping = iPos->second;
+    return pYmRevClassMapping;
+    }
+

@@ -1,0 +1,249 @@
+#pragma ident "%Z% FileName: $RCSfile: YmRevAnnuTpOD.pc,v $ Version: $Revision: 1.17 $ Date: $Date: 2009/02/20 13:10:57 $ %Z %"
+
+//## Module: YmRevAnnuTpOD
+//SFD
+//  Name:    YmRevAnnuTpOD.cpp
+//  Author:  JM. Grugeaux
+//  Desc:    prise en compte annulation dans g_MapTpOD
+//EFD
+
+
+using namespace std;
+
+//standard includes
+#include <iterator>
+#include </usr/lib/oracle/11.2/client64/precomp/public/sqlca.h>
+#include <string.h>
+#include <stdlib.h>
+#include <iostream>
+#include <stdio.h>
+//application includes
+#include <YmRevGlobal.h>
+#include <YmRevAnnuTpOD.h>
+#include <YmRevMess.h>
+
+//## Configuration du contexte de base JRO IC SRO DT 23805
+extern sql_context ctxRevMain;
+EXEC SQL CONTEXT USE :ctxRevMain;
+
+YmRevAnnuTpOD::YmRevAnnuTpOD()
+  {
+  }
+
+YmRevAnnuTpOD::~YmRevAnnuTpOD()
+  {
+  }
+
+void YmRevAnnuTpOD::SupprAnnuTraitees()
+{
+    cout<<DonneHeure()<<" Debut SupprAnnuTraiter : update ANNULE dans REV_TCN"<<endl;
+    EXEC SQL WHENEVER SQLERROR DO sql_error((char *)"Erreur Update ANNULE dans REV_TCN",0);
+    EXEC SQL UPDATE REV_TCN SET ANNULE = 1
+             WHERE (tcn_number, date_paiement) in
+            ( SELECT tcn_number_aa, date_paiement_aa
+              FROM REV_TCN_A_ANNULER);
+    EXEC SQL COMMIT;
+
+    cout<<DonneHeure()<<"                        : Delete dans REV_TCN_A_ANNULER"<<endl;
+    EXEC SQL WHENEVER SQLERROR DO sql_error((char *)"Erreur Delete dans REV_TCN_A_ANNULER",0);
+    EXEC SQL DELETE FROM REV_TCN_A_ANNULER
+             WHERE (tcn_number_aa, date_paiement_aa) in
+           ( SELECT a.tcn_number_aa, a.date_paiement_aa
+             FROM REV_TCN_A_ANNULER a, REV_TCN t
+             WHERE a.tcn_number_aa = t.tcn_number and
+                   a.date_paiement_aa = t.date_paiement);
+
+    EXEC SQL COMMIT;
+
+    EXEC SQL BEGIN DECLARE SECTION;
+    char date_limite[11];
+    char date_purge[9];
+    int countAnnuAPurger;
+    int retention;
+    EXEC SQL END DECLARE SECTION;
+
+    strcpy (date_limite, g_szDateFichier);
+    retention = g_Retention;
+    EXEC SQL SELECT TO_CHAR(TO_DATE (:date_limite, 'dd/mm/yyyy') -:retention,'dd/mm/yy') into :date_purge FROM DUAL;
+   // Nombre  ANNULATION non traite deux jours apres leur apparition. A purger 
+    EXEC SQL SELECT count(*) into :countAnnuAPurger FROM REV_ANNULATION_ECHANGE
+             WHERE (tcn_annule, date_tcn) in
+           ( SELECT a.tcn_number_aa, a.date_paiement_aa
+             FROM REV_TCN_A_ANNULER a
+             WHERE a.date_fichier < TO_DATE (:date_limite, 'dd/mm/yyyy') -:retention);
+    // Elimination des ANNULATION non traite deux jours apres leur apparition. Ce doit etre des non yielde
+    EXEC SQL DELETE FROM REV_ANNULATION_ECHANGE
+             WHERE (tcn_annule, date_tcn) in
+           ( SELECT a.tcn_number_aa, a.date_paiement_aa
+             FROM REV_TCN_A_ANNULER a
+             WHERE a.date_fichier < TO_DATE (:date_limite, 'dd/mm/yyyy') -:retention);
+    EXEC SQL DELETE FROM REV_TCN_A_ANNULER
+             WHERE date_fichier < TO_DATE (:date_limite, 'dd/mm/yyyy') -:retention;
+    EXEC SQL COMMIT;
+   //Message informant sur le nombre d'annulation a purger apres :retention jours de TP_REV_ANNULATION_ECHANGE
+    YmRevMess rMess((char*)"batch_unitaire", (char*)"YmRevAnnuTpOD",(char*)"SupprAnnuTraites",(char*)"revenus");
+    char sMessText[180];
+    sprintf(sMessText,"Nb Annulations anterieures a %s purgees car non traitees apres %d jours : %d",
+            date_purge,retention,countAnnuAPurger);
+    rMess.envoiMess(78,(char *)sMessText,YmRevMess::INF);
+    cout<<DonneHeure()<<" Fin SupprAnnuTraiter"<<endl;
+  }
+
+
+
+
+
+// Met a jour les date_tcn dans les tables rev_annulation_echange et rev_tcn_a_annuler
+// pour les lignes ou la date_tcn est egale a '01/01/2000', la valeur dummy.
+// La date est prise dans rev_tcn en prenant la date max pour le TCN de meme numero.
+// Ensuite:
+// Lecture en base les infos annulations et met a jour la Map d'insertion vers la table TPREV_OD
+// ainsi que la map d'insertion vers la table TPREV_FBC_OD
+
+int YmRevAnnuTpOD::TraiteAnnuTpOD() // Fait le boulot, renvoi le nombre de lignes traite
+  {
+    int iNb=0;
+    EXEC SQL BEGIN DECLARE SECTION;
+       int     tranche_no;
+       varchar origine_seg[6];
+       varchar destination_seg[6];
+       varchar class_of_service[3];
+	   //DM 7978 - JLA - Ajout Num_Palier
+	   int     num_palier;
+       varchar fare_basis_code[9];
+       short   inull_fare = -1;
+       int     nest_level;
+       char    date_depart[11];
+       int     revenu;
+       int     nombre_passagers;
+       short   inull_revenu = -1;
+       short   inull_scx = -1;
+       int     spp_num;
+       int     ppp_num;
+//PLF 07/07/2008: DM5882.1 :rajout sous-contingentement ( scx ) pour nestlevel =0
+       int     scx;
+    EXEC SQL END DECLARE SECTION;
+    
+    EXEC SQL WHENEVER SQLERROR DO sql_error((char *)"Erreur prise en compte annulations",0);
+
+    // Avant recuperation des annulation, recuperation de la date TCN pour les annulations ou elle
+    // n'est pas indique
+    EXEC SQL UPDATE REV_ANNULATION_ECHANGE set DATE_TCN =
+           ( SELECT NVL(max (date_paiement), to_date ('01/01/2000', 'dd/mm/yyyy')) FROM REV_TCN
+             WHERE tcn_number = tcn_annule) 
+            WHERE date_tcn = to_date('01/01/2000', 'dd/mm/yyyy');
+    EXEC SQL UPDATE REV_TCN_A_ANNULER set DATE_PAIEMENT_AA =
+           ( SELECT NVL(max (date_paiement), to_date ('01/01/2000', 'dd/mm/yyyy')) FROM REV_TCN
+             WHERE tcn_number = tcn_number_aa) 
+            WHERE date_paiement_aa = to_date('01/01/2000', 'dd/mm/yyyy');
+			
+	//DM 7978 - JLA - ajout de Num_Palier
+    EXEC SQL DECLARE cAnnu CURSOR FOR
+         SELECT s.tranche_no, s.origine_seg, s.destination_seg, s.class_of_service, s.nest_level, s.num_palier,
+                to_char (s.date_depart, 'dd/mm/yyyy'), s.revenu, p.nombre_passagers, p.fare_basis_code,
+                s.pp_num, p.pp_num ,s.scx
+         FROM REV_SEGMENTS s, REV_PASSAGERS_PARCOURS p, REV_TCN_A_ANNULER a
+         WHERE s.tcn_number = a.tcn_number_aa and s.date_paiement = a.date_paiement_aa and
+               p.tcn_number = a.tcn_number_aa and p.date_paiement = a.date_paiement_aa;
+    EXEC SQL OPEN cAnnu ;
+
+    cout<<DonneHeure()<<" Debut prise en compte annulation"<<endl;
+    int totAnnuRev = 0;
+    int totAnnuPas = 0;
+    int multippnum = 0;
+    
+    EXEC SQL WHENEVER NOT FOUND DO break;
+    string sOrig, sDest, sClass, sFare;
+    while(1)
+    {
+	   //DM 7978 - JLA - Ajout Num_Palier
+       EXEC SQL FETCH cAnnu INTO :tranche_no, :origine_seg, :destination_seg, :class_of_service,
+                                 :nest_level, :num_palier, :date_depart, :revenu:inull_revenu, :nombre_passagers,
+                                 :fare_basis_code:inull_fare, spp_num, ppp_num, :scx:inull_scx ;
+       if (inull_revenu == -1)
+         revenu = 0;
+       if (inull_scx == -1)
+         scx = 0;
+       if (spp_num != ppp_num)
+         multippnum ++;
+       else
+       {
+         iNb++;
+         origine_seg.arr[origine_seg.len] = '\0';
+         destination_seg.arr[destination_seg.len] = '\0';
+         class_of_service.arr[class_of_service.len] = '\0';
+         if (inull_fare == -1)
+           sFare = "";
+         else
+         {
+           fare_basis_code.arr[fare_basis_code.len] = '\0';
+           sFare = (char*)fare_basis_code.arr;
+         }
+         date_depart[10] = 0;  // coup de securite.
+         sOrig = (char*)origine_seg.arr;
+         sDest = (char*)destination_seg.arr;
+         sClass = (char*)class_of_service.arr;
+
+         totAnnuRev += revenu;
+         totAnnuPas += nombre_passagers;
+
+         YmRevTpOD* pTpOD;
+// PLF 07/07/2008: DM5882.1 :rajout sous-contingentement ( scx ) pour nestlevel =0
+//JRO - IC SRO - DT23805 - Ajouter du flag isTrain valant 0 car le no tranche vient de la table REV_SEGMENT 
+
+         pTpOD = g_MapTpOD.isInMap (tranche_no, date_depart, sOrig, sDest, sClass, num_palier , nest_level,scx, 0);
+         if (pTpOD)
+         {
+           pTpOD->addRevenu (-revenu);
+           pTpOD->addPassagers (-nombre_passagers);
+         }
+         else
+         {
+           TrLeg aTrLeg = g_MapTrLeg.InMap (tranche_no, sOrig, sDest, date_depart); //MHUE 11/09/06
+//MHUE 11/09/06
+           string aTrLeg_dpt_date_tr_part = aTrLeg.dpt_date_tr;
+                     
+           if ((aTrLeg.indic_tgv!=2) && (YmDate(aTrLeg_dpt_date_tr_part) >= g_dateMinTranche))
+              {
+			  //JRO - IC SRO - DT23805 - Ajouter du flag isTrain valant 0 car le no tranche vient de la table REV_SEGMENT 
+			  
+              pTpOD = new YmRevTpOD (tranche_no, aTrLeg.dpt_date_tr, sOrig, sDest, sClass, num_palier, nest_level,
+                                  date_depart, -nombre_passagers, -revenu, aTrLeg.indic_tgv, g_szDateFichier,
+                                  g_HeureFichier,scx,0);
+              g_MapTpOD.Add (pTpOD);
+              }
+//MHUE 11/09/06
+         }
+
+         if (!sFare.empty())
+         {
+           YmRevTpFBC* pTpFBC;
+           pTpFBC = g_MapTpFBC.isInMap (tranche_no, date_depart, sOrig, sDest, sFare);
+           if (pTpFBC)
+           {
+             pTpFBC->addRevenu (-revenu);
+             pTpFBC->addPassagers (-nombre_passagers);
+           }
+           else
+           {
+             TrLeg aTrLeg = g_MapTrLeg.InMap (tranche_no, sOrig, sDest, date_depart); //MHUE 11/09/06
+             string aTrLeg_dpt_date_tr_part1 = aTrLeg.dpt_date_tr;
+             if ((aTrLeg.indic_tgv!=2) && (YmDate(aTrLeg_dpt_date_tr_part1) >= g_dateMinTranche))
+             {
+                pTpFBC = new YmRevTpFBC (tranche_no, aTrLeg.dpt_date_tr, sOrig, sDest, sFare,
+                                  date_depart, -nombre_passagers, -revenu, 1, g_szDateFichier);
+                g_MapTpFBC.Add (pTpFBC);
+             }
+           }
+         }
+       }
+    }
+    EXEC SQL CLOSE cAnnu ;
+    EXEC SQL COMMIT;
+    cout<<DonneHeure()<<" Fin prise en compte: "<<iNb<<" segments annules, NbPassagers="<<totAnnuPas<<" TotRevenu="<<totAnnuRev<<endl;
+    cout<<"                Multippnum = "<<multippnum<<endl;
+    return iNb;
+}
+
+
+

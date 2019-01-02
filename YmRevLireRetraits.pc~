@@ -1,0 +1,102 @@
+//---------------------------------------------------------------------------------------------------------
+// lecture des donness RESAVEN retraits placee dans le vecteur par le Thread EcrireVec
+// --------------------------------------------------------------------------------------------------------
+
+using namespace std;
+
+#include <iostream>
+#include <sqlca.h>
+#include <unistd.h>
+#include <YmRevDate.h>
+#include <YmRevGlobal.h>
+#include <YmRevLireRetraits.h>
+
+//## Configuration du contexte de base JRO IC SRO DT 23805
+extern sql_context ctxRevMain;
+EXEC SQL CONTEXT USE :ctxRevMain;
+
+EXEC SQL BEGIN DECLARE SECTION;
+
+#define MAX_NBRETRAITS_IN_BUF 500
+
+int nbRetraitsInBuf;
+
+char pCanalEmissionTable[MAX_NBRETRAITS_IN_BUF][6];
+char pDateTable[MAX_NBRETRAITS_IN_BUF][17];
+unsigned int pTcnNumberTable[MAX_NBRETRAITS_IN_BUF];
+
+EXEC SQL END DECLARE SECTION;
+
+
+
+YmRevLireRetraits::YmRevLireRetraits()
+{
+  nbRetraits = 0;
+}
+
+YmRevLireRetraits::~YmRevLireRetraits()
+{
+}
+
+void YmRevLireRetraits::Start()
+{
+  EXEC SQL WHENEVER SQLERROR DO sql_error ((char*)"Pb YmRevLireRetraits", 0);
+
+  // On attend que la lecture du ResaVen et l'ecriture en base soit finies
+  while (g_EcrireVecEnCours || g_NbThreadLecteur)
+    sleep(6);
+
+  while (g_VRetraits.size())
+  { // Normalement LOCK et UNLOCK sont inutile, mais on garde pour faire joli.
+    LOCK_MUTEX (&g_MutexVRetraits);
+    nbRetraitsInBuf = fillBufRetrait();
+    g_VRetraits.erase (g_VRetraits.begin(), g_VRetraits.begin()+nbRetraitsInBuf);
+    // rappel erase supprime entre first inclu et last exclu.
+    UNLOCK_MUTEX (&g_MutexVRetraits);
+    if (nbRetraitsInBuf)
+      UpdateRetraits();
+  }
+  cout<<endl;
+  cout<<DonneHeure()<<" Fin LireRetraits  nombre:"<<nbRetraits<<endl;
+}
+
+
+//place MAX_NBRETRAITS_IN_BUF YmRevRetraits dans les tableaux (ou moins si g_VRetraits en contient moins)
+int YmRevLireRetraits::fillBufRetrait()
+{
+  int maxrec = MAX_NBRETRAITS_IN_BUF;
+  if (g_VRetraits.size() < MAX_NBRETRAITS_IN_BUF)
+    maxrec = g_VRetraits.size();
+  int i;
+  string lstrdatetemp;
+  YmRevRetraits* pRetrait;
+  for (i = 0; i < maxrec; i++)
+  {
+    pRetrait = g_VRetraits[i];
+    strcpy (pCanalEmissionTable[i], pRetrait->getCanalEmission().c_str());
+    //
+    lstrdatetemp=pRetrait->getDateTransaction().substr(6,2)+'/'+pRetrait->getDateTransaction().substr(4,2)+'/'+pRetrait->getDateTransaction().substr(0,4);
+    strcpy (pDateTable[i],lstrdatetemp.c_str() );
+    //
+
+    //strcpy (pDateTable[i], ConvertAAAAMMJJ (pRetrait->getDateTransaction()));
+    strcat (pDateTable[i], " ");
+    strcat (pDateTable[i], pRetrait->getHeureTransaction().c_str());
+    pTcnNumberTable[i] = pRetrait->getTcnNumber();
+    delete pRetrait;
+  }
+  return maxrec;
+}
+
+
+// Mise a jour des champs DATE_EMISSION_PHYSIQUE et IATA_VENTE de REV_TCN
+void YmRevLireRetraits::UpdateRetraits()
+{
+  cout <<"r";
+  nbRetraits += nbRetraitsInBuf;
+  EXEC SQL FOR :nbRetraitsInBuf UPDATE REV_TCN SET DATE_EMISSION_PHYSIQUE = TO_DATE (:pDateTable, 'dd/mm/yyyy hh24mi'),
+                                                   CANAL_EMISSION = :pCanalEmissionTable
+			  WHERE TCN_NUMBER = :pTcnNumberTable; 
+  EXEC SQL COMMIT WORK;
+}
+

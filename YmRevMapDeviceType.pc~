@@ -1,0 +1,109 @@
+#pragma ident "%Z% FileName: $RCSfile: YmRevMapDeviceType.pc,v $ Version: $Revision: 1.5 $ Date: $Date: 2006/11/24 13:50:52 $ %Z %"
+
+//## Module: YmRevMapDeviceType
+//SFD
+//  Name:    YmRevMapDeviceType.cpp
+//  Author:  JM. Grugeaux
+//  Desc:    traitement de la liste des device type
+//EFD
+
+
+using namespace std;
+
+//standard includes
+#include <iterator>
+#include <sqlca.h>
+#include <string>
+//application includes
+#include <YmRevGlobal.h>
+#include <YmRevMapDeviceType.h>
+
+//## Configuration du contexte de base JRO IC SRO DT 23805
+extern sql_context ctxRevMain;
+EXEC SQL CONTEXT USE :ctxRevMain;
+
+YmRevMapDeviceType::YmRevMapDeviceType()
+  {
+  }
+YmRevMapDeviceType::~YmRevMapDeviceType()
+  {
+    MapDeviceTypeType::iterator iPos = _MapDeviceType.begin();
+    MapDeviceTypeType::iterator iFin = _MapDeviceType.end();
+
+    YmRevDeviceType* pRevDeviceType;
+    while (iPos!=iFin)
+       {
+       pRevDeviceType =iPos->second;
+       delete pRevDeviceType;
+       iPos++;
+       }
+    _MapDeviceType.clear();
+  }
+
+int YmRevMapDeviceType::init() //initialisation de la map a partir de la base
+                                    // 0 = OK, -1 = pas trouve
+    {
+    int iRet=0;
+    int iNb=0;
+    EXEC SQL BEGIN DECLARE SECTION;
+       varchar vcDeviceType[4];
+       varchar vcGroupeDevice[11];
+    EXEC SQL END DECLARE SECTION;
+    
+    EXEC SQL WHENEVER SQLERROR DO sql_error((char *)"liste des device Type illisible",1);
+    EXEC SQL DECLARE cMapDeviceType CURSOR FOR
+         SELECT device_type, groupe_device FROM rev_device_types ORDER BY device_type;
+    EXEC SQL OPEN cMapDeviceType ;
+
+    EXEC SQL WHENEVER NOT FOUND DO break;
+    string skey;
+    string sdevice;
+    while(1)
+       {
+       EXEC SQL FETCH cMapDeviceType INTO :vcDeviceType, :vcGroupeDevice;
+       iNb++;
+       vcDeviceType.arr[vcDeviceType.len] = '\0';
+       vcGroupeDevice.arr[vcGroupeDevice.len] = '\0';
+       skey = (char*)vcDeviceType.arr; 
+       sdevice = (char*)vcGroupeDevice.arr; 
+       YmRevDeviceType *pRevDeviceType = new YmRevDeviceType(skey, sdevice);
+       //_MapDeviceType.insert(MapDeviceTypeType::value_type(skey, pRevTarif));
+       _MapDeviceType[skey] = pRevDeviceType;
+       }
+    EXEC SQL CLOSE cMapDeviceType ;
+    if  (iNb==0) 
+        iRet=-1;
+    else
+        iRet=0;
+    return iRet;
+    }
+
+bool YmRevMapDeviceType::isInMap(string sDeviceType) //retourne TRUE si trouve, FALSE sinon
+{
+  if (g_TestCanaux)
+    return (findInMap (sDeviceType) != NULL);
+
+  return true;
+}
+
+YmRevDeviceType* YmRevMapDeviceType::findInMap(string sDeviceType) //retourne pointeur si OK, NULL sinon
+    {
+    MapDeviceTypeType::iterator iPos;
+    YmRevDeviceType* pYmRevDeviceType;
+    // suppression des blancs inutiles de la variable d'entree
+    string sDevTyp;
+    int j=0;
+    for (int i=0;i <sDeviceType.size();i++) {
+        if (sDeviceType.substr(i,1) != string(" ")) {
+           sDevTyp=sDevTyp.substr(0,j)+sDeviceType.substr(i,1);
+           j++;
+        }       
+    } 
+    iPos = _MapDeviceType.find (sDevTyp);
+    if (iPos == _MapDeviceType.end())
+      return NULL;
+
+    pYmRevDeviceType = iPos->second;
+    return pYmRevDeviceType;
+    }
+

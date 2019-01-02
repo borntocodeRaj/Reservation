@@ -1,0 +1,229 @@
+//---------------------------------------------------------------------------------------------------------
+// Lecture des donness RESAVEN placee dans le vecteur par EcrireVec
+// --------------------------------------------------------------------------------------------------------
+
+using namespace std;
+
+#include <iostream>
+#include </usr/lib/oracle/11.2/client64/precomp/public/sqlca.h>
+#include <unistd.h>
+#include <YmRevGlobal.h>
+#include <YmRevLireAnnu.h>
+
+//## Configuration du contexte de base JRO IC SRO DT 23805
+extern sql_context ctxRevMain;
+EXEC SQL CONTEXT USE :ctxRevMain;
+
+EXEC SQL BEGIN DECLARE SECTION;
+
+#define MAX_NBANNU_IN_BUF 500
+
+int nbAnnuInBuf;
+
+struct REV_ANNU {
+        int tcn_annule;
+        char date_tcn[11];
+        char date_operation[11];
+        int heure_annulation;
+        int montant_tcn;
+        int montant_rembourse;
+        int montant_retenues;
+        char station_origine[6];
+        char station_destination[6];
+      } pRevAnnuTable[MAX_NBANNU_IN_BUF];
+
+struct REV_ANNU pRevAnnuSingle[1];
+
+struct REV_TCN_A_ANNULER {
+        int tcn_number;
+        char date_paiement[11];
+        char date_fichier[11];
+        int heure_fichier;
+     } pRevAnnuATraiterTable[MAX_NBANNU_IN_BUF];
+
+struct REV_TCN_A_ANNULER pRevAnnuATraiterSingle[1];
+
+char connectstringLireAnnu[55];
+sql_context ctxLireAnnu;
+EXEC SQL END DECLARE SECTION;
+
+
+
+YmRevLireAnnu::YmRevLireAnnu()
+{
+
+  nbAnnuTotal = 0;
+}
+
+YmRevLireAnnu::~YmRevLireAnnu()
+{
+}
+
+void YmRevLireAnnu::Start()
+{
+  sprintf (connectstringLireAnnu, "%s/%s", g_UserName, g_Password);
+  EXEC SQL WHENEVER SQLERROR DO sql_error ((char*)"Pb YmRevLireAnnu", 0);
+  EXEC SQL CONTEXT ALLOCATE :ctxLireAnnu;
+  EXEC SQL CONTEXT USE :ctxLireAnnu;
+  EXEC SQL CONNECT :connectstringLireAnnu;
+  while (g_EcrireVecEnCours || g_VAnnulation.size())
+  { // On teste a la fois size et Ecriture en cours, au cas ou LireAnnu irai plus vite que EcrireVec
+    purgeBufAnnu();
+    LOCK_MUTEX (&g_MutexVAnnulation);
+    fillBufAnnu();
+    nbAnnuInBuf = bufVAnnu.size();
+    if (nbAnnuInBuf)
+      g_VAnnulation.erase (g_VAnnulation.begin(), g_VAnnulation.begin()+nbAnnuInBuf);
+      // rappel erase supprime entre first inclu et last exclu.
+    UNLOCK_MUTEX (&g_MutexVAnnulation);
+    if (nbAnnuInBuf)
+      InsertAnnulation();
+    else
+      sleep(6);	// On attend un peu qu'il y ai du taf.
+    EXEC SQL COMMIT WORK;
+  }
+  cout<<endl;
+  cout<<DonneHeure()<<" Fin LireAnnu   total="<<nbAnnuTotal<<endl;
+  EXEC SQL COMMIT WORK RELEASE;
+  EXEC SQL CONTEXT FREE :ctxLireAnnu;
+  return;
+}
+
+ // Fait delete sur tous les YmRevAnnulation* contenu dans bufVAnnu et vide ce vecteur.
+void YmRevLireAnnu::purgeBufAnnu()
+{
+  int i;
+  YmRevAnnulation* pRevAnnu;
+  for (i=0; i < bufVAnnu.size(); i++)
+  {
+    pRevAnnu = bufVAnnu[i];
+    delete pRevAnnu;
+  }
+  bufVAnnu.clear();
+}
+
+//place MAX_NBANNU_IN_BUF YmRevAnnulation* dans le vecteur local bufVAnnu (ou moins si g_VAnnulation en contient moins)
+int YmRevLireAnnu::fillBufAnnu()
+{
+  int maxrec = MAX_NBANNU_IN_BUF;
+  if (g_VAnnulation.size() < MAX_NBANNU_IN_BUF)
+    maxrec = g_VAnnulation.size();
+  bufVAnnu.assign (g_VAnnulation.begin(), g_VAnnulation.begin()+maxrec);
+  return maxrec;
+}
+
+
+// Insertion dans la table REV_ANNULATION_ECHANGE
+void YmRevLireAnnu::InsertAnnulation()
+{
+  memset (pRevAnnuTable, 0, sizeof(pRevAnnuTable));
+  memset (pRevAnnuATraiterTable, 0, sizeof(pRevAnnuATraiterTable));
+  int i, k;
+  YmRevAnnulation* pRevAnnu;
+  //
+  char lsdate[8];
+  string lstrdatetemp;
+  //
+  k = 0;
+  for (i=0; i < bufVAnnu.size(); i++)
+  {
+    pRevAnnu = bufVAnnu[i];
+
+    pRevAnnuATraiterTable[k].tcn_number = pRevAnnu->getTcnAnnule(); 
+    if (pRevAnnu->getDateTcn().empty())
+      strcpy (pRevAnnuATraiterTable[k].date_paiement, "01/01/2000");
+    else
+    { 
+      //lstrdatetemp=pRevAnnu->getDateTcn().substr(6,2)+'/'+pRevAnnu->getDateTcn().substr(4,2)+'/'+pRevAnnu->getDateTcn().substr(0,4);
+      
+      lstrdatetemp = string(lsdate,8);
+      strcpy (pRevAnnuATraiterTable[k].date_paiement,lstrdatetemp.c_str());
+      //
+      //strcpy (pRevAnnuATraiterTable[k].date_paiement, ConvertAAAAMMJJ (pRevAnnu->getDateTcn()));
+    }
+    strcpy (pRevAnnuATraiterTable[k].date_fichier, g_szDateFichier);
+    pRevAnnuATraiterTable[k].heure_fichier = g_HeureFichier;
+
+
+
+    pRevAnnuTable[k].tcn_annule = pRevAnnu->getTcnAnnule(); 
+
+    if (pRevAnnu->getDateTcn().empty())
+      strcpy (pRevAnnuTable[k].date_tcn, "01/01/2000");
+    else
+    {
+      //
+      lstrdatetemp = string(lsdate,8);
+      strcpy (pRevAnnuTable[k].date_tcn,lstrdatetemp.c_str());
+      //
+      //strcpy (pRevAnnuTable[k].date_tcn, ConvertAAAAMMJJ (pRevAnnu->getDateTcn()));
+    }
+    if (pRevAnnu->getDateOperation().empty())
+      strcpy (pRevAnnuTable[k].date_operation, "01/01/2000");
+    else
+    {
+      //
+      lstrdatetemp = string(lsdate,8);
+      strcpy (pRevAnnuTable[k].date_operation,lstrdatetemp.c_str());
+      //
+      //strcpy (pRevAnnuTable[k].date_operation, ConvertAAAAMMJJ (pRevAnnu->getDateOperation()));
+    }
+    pRevAnnuTable[k].heure_annulation = atoi (pRevAnnu->getHeureOperation().c_str()); 
+    pRevAnnuTable[k].montant_tcn = pRevAnnu->getMontantTcn();
+    pRevAnnuTable[k].montant_rembourse = pRevAnnu->getMontantRembourse(); 
+    pRevAnnuTable[k].montant_retenues = pRevAnnu->getMontantRetenues(); 
+
+    if (pRevAnnu->getStationOrigine().empty() || pRevAnnu->getStationOrigine() == "     ")  // vide ou 5 espaces
+      strcpy (pRevAnnuTable[k].station_origine, "XXXXX");
+    else
+      strcpy (pRevAnnuTable[k].station_origine, pRevAnnu->getStationOrigine().c_str());
+
+    if (pRevAnnu->getStationDestination().empty() || pRevAnnu->getStationDestination() == "     ") // vide ou 5 espaces
+      strcpy (pRevAnnuTable[k].station_destination, "XXXXX");
+    else
+      strcpy (pRevAnnuTable[k].station_destination, pRevAnnu->getStationDestination().c_str());
+
+    k++;
+  }
+  cout <<"-";
+  EXEC SQL WHENEVER SQLERROR GOTO err_annu_insert;
+  EXEC SQL FOR :nbAnnuInBuf INSERT INTO REV_ANNULATION_ECHANGE 
+       (TCN_ANNULE, DATE_TCN, DATE_OPERATION, HEURE_ANNULATION, MONTANT_TCN, MONTANT_REMBOURSE, MONTANT_RETENUES,
+        STATION_ORIGINE, STATION_DESTINATION)
+       values (:pRevAnnuTable);
+  EXEC SQL FOR :nbAnnuInBuf INSERT INTO REV_TCN_A_ANNULER
+       (TCN_NUMBER_AA, DATE_PAIEMENT_AA, DATE_FICHIER, HEURE_FICHIER)
+       values (:pRevAnnuATraiterTable);
+  nbAnnuTotal += nbAnnuInBuf;
+  EXEC SQL COMMIT WORK;
+  return;
+
+err_annu_insert:
+  cerr << "ERROR BULK INSERT ANNULATION: \n";
+  char szMess[71];
+  strncpy(szMess,sqlca.sqlerrm.sqlerrmc,sqlca.sqlerrm.sqlerrml);
+  szMess[sqlca.sqlerrm.sqlerrml]='\0';
+  cerr << szMess << "\n";
+  EXEC SQL ROLLBACK WORK;
+
+  cout<<"insertion ligne a ligne de "<<nbAnnuInBuf<<" ANNULATION"<<endl;
+  int j = 0;
+  for (j = 0; j < nbAnnuInBuf; j++)
+  {
+    EXEC SQL WHENEVER SQLERROR CONTINUE;
+    pRevAnnuSingle[0] = pRevAnnuTable[j];
+    EXEC SQL FOR 1 INSERT INTO REV_ANNULATION_ECHANGE 
+       (TCN_ANNULE, DATE_TCN, DATE_OPERATION, HEURE_ANNULATION, MONTANT_TCN, MONTANT_REMBOURSE, MONTANT_RETENUES,
+        STATION_ORIGINE, STATION_DESTINATION)
+       values (:pRevAnnuSingle);
+
+    EXEC SQL WHENEVER SQLERROR DO sql_warn ("ANNU", pRevAnnuTable[j].tcn_annule, nbAnnuTotal);
+    pRevAnnuATraiterSingle[0] = pRevAnnuATraiterTable[j];
+    EXEC SQL FOR 1 INSERT INTO REV_TCN_A_ANNULER
+       (TCN_NUMBER_AA, DATE_PAIEMENT_AA, DATE_FICHIER, HEURE_FICHIER)
+       values (:pRevAnnuATraiterSingle);
+    nbAnnuTotal ++;
+  }
+  EXEC SQL COMMIT WORK;
+}
+

@@ -1,0 +1,148 @@
+#pragma ident "%Z% FileName: $RCSfile: YmRevMapTrLegTrainNo.pc,v $ Version: $Revision: 1.6 $ Date: $Date: 2009/02/20 13:10:57 $ %Z %"
+
+//## Module: YmRevMapTrLegTrainNo
+//SFD
+//  Name:    YmRevMapTrLegTrainNo.cpp
+//  Author:  JM. Grugeaux
+//  Desc:    traitement de la liste des code tarifs
+//EFD
+
+
+using namespace std;
+
+//standard includes
+#include <iterator>
+#include <sqlca.h>
+
+//application includes
+#include <YmRevGlobal.h>
+#include <YmRevMapTrLegTrainNo.h>
+
+//## Configuration du contexte de base JRO IC SRO DT 23805
+extern sql_context ctxRevMain;
+EXEC SQL CONTEXT USE :ctxRevMain;
+
+YmRevMapTrLegTrainNo::YmRevMapTrLegTrainNo()
+  {
+  }
+
+YmRevMapTrLegTrainNo::~YmRevMapTrLegTrainNo()
+  {
+    _MapTrLegTrainNo.clear();
+  }
+
+int YmRevMapTrLegTrainNo::init() //initialisation de la map a partir de la base
+                                    // 0 = OK, -1 = pas trouve
+    {
+    int iRet=0;
+    int iNb=0;
+    EXEC SQL BEGIN DECLARE SECTION;
+       varchar vcLegOrig[6];
+       varchar vcLegDest[6]; //MHUE 11/09/06
+       char cDateLeg[11];
+       char cDateTranche[11];
+     
+	   int iTrainNo;
+       short iTgvFlag;
+    EXEC SQL END DECLARE SECTION;
+    
+    EXEC SQL WHENEVER SQLERROR DO sql_error((char *)"liste des tranches legs",1);
+    EXEC SQL DECLARE cMapTrLeg CURSOR FOR
+         SELECT no_train, to_char (dpt_date_leg, 'dd/mm/yyyy'), leg_orig, leg_dest, //MHUE 11/09/06
+                            to_char (dpt_date_tr, 'dd/mm/yyyy'), tgv_flag FROM rev_tranches_legs WHERE no_train = 1001;
+    EXEC SQL OPEN cMapTrLeg ;
+
+    EXEC SQL WHENEVER NOT FOUND DO break;
+    string skey1;
+    string skey2;
+    TrLeg  aTrLeg;
+    char ctrno[10];
+    while(1)
+       {
+       EXEC SQL FETCH cMapTrLeg INTO :iTrainNo, :cDateLeg, :vcLegOrig, :vcLegDest, :cDateTranche, :iTgvFlag; //MHUE 11/09/06
+       cDateLeg[10] = 0;
+       cDateTranche[10] = 0;
+       iNb++;
+       vcLegOrig.arr[vcLegOrig.len] = '\0';
+       vcLegDest.arr[vcLegDest.len] = '\0'; //MHUE 11/09/06
+       sprintf (ctrno, "%d", iTrainNo);
+       skey1 = ctrno;
+       skey1 += (char*)vcLegOrig.arr; 
+//MHUE 11/09/06
+       skey1 += (char*)"-----"; 
+//MHUE 11/09/06
+       skey1 += cDateLeg;
+       strcpy (aTrLeg.dpt_date_tr, cDateTranche);
+       aTrLeg.indic_tgv = iTgvFlag;
+	
+       _MapTrLegTrainNo[skey1] = aTrLeg;
+//MHUE 11/09/06
+       skey2 = ctrno;
+       skey2 += (char*)"-----"; 
+       skey2 += (char*)vcLegDest.arr; 
+       skey2 += cDateLeg;
+	
+       _MapTrLegTrainNo[skey2] = aTrLeg;
+//MHUE 11/09/06
+       }
+    EXEC SQL CLOSE cMapTrLeg ;
+    if  (iNb==0) 
+        iRet=-1;
+    else
+        iRet=0;
+    return iRet;
+    }
+
+//MHUE 11/09/06
+TrLeg YmRevMapTrLegTrainNo::InMap (int train_no, string leg_orig, string leg_dest, char* date_depart) //retourne une structure TrLeg
+                        // Si non trouve renvoi un TrLeg Dummy : dpt_date_tr = "01/01/2000", indic_tgv = 2;
+   {
+    MapTrLegType::iterator iPos1;
+    MapTrLegType::iterator iPos2;
+
+    string skey;
+    char ctrno[10];
+    sprintf (ctrno, "%d", train_no);
+    skey = ctrno;
+    skey += leg_orig;
+    skey += (char *)"-----";
+    skey += date_depart;
+    iPos1 = _MapTrLegTrainNo.find (skey);
+    skey = ctrno;
+    skey += (char *)"-----";
+    skey += leg_dest;
+    skey += date_depart;
+    iPos2 = _MapTrLegTrainNo.find (skey);
+
+    //JMG 27/06/07, pb si troncon entierement apres minuit, ano 262360
+    if ((iPos1 != _MapTrLegTrainNo.end()) && (iPos2 == _MapTrLegTrainNo.end()))
+    {// on essaie le troncon arrive avec le lendemain de la date de depart indique
+      string sDate (date_depart);
+      YmDate dtArr (sDate);
+      dtArr += 1;
+      char date_demain[11];
+      dtArr.PrintFrench(date_demain);
+      skey = ctrno;
+      skey += (char *)"-----";
+      skey += leg_dest;
+      skey += date_demain;
+      iPos2 = _MapTrLegTrainNo.find (skey);
+      if (iPos2 != _MapTrLegTrainNo.end())
+      {
+        TrLeg trl = (TrLeg)iPos2->second;
+        if (strcmp (trl.dpt_date_tr, date_depart))
+          iPos2 = _MapTrLegTrainNo.end();
+      }
+    }
+    if ((iPos1 == _MapTrLegTrainNo.end()) || (iPos2 == _MapTrLegTrainNo.end()))
+    {
+      TrLeg DummyTrLeg;
+      strcpy (DummyTrLeg.dpt_date_tr, "01/01/2000");
+      DummyTrLeg.indic_tgv = 2;
+      return DummyTrLeg;
+    }
+
+    return (TrLeg)iPos1->second;
+    }
+//MHUE 11/09/06
+

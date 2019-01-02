@@ -1,0 +1,453 @@
+#pragma ident "%Z% FileName: $RCSfile: YmRevMapTpOD.pc,v $ Version: $Revision: 1.8 $ Date: $Date: 2009/02/20 13:10:57 $ %Z %"
+
+//## Module: YmRevMapTpOD
+//SFD
+//  Name:    YmRevMapTpOD.cpp
+//  Author:  JM. Grugeaux
+//  Desc:    traitement de la liste des code tarifs
+//EFD
+
+
+using namespace std;
+
+//standard includes
+#include <iterator>
+#include </usr/lib/oracle/11.2/client64/precomp/public/sqlca.h>
+
+//application includes
+#include <YmRevGlobal.h>
+#include <YmRevMapTpOD.h>
+#include <string.h>
+#include <stdlib.h>
+#include <iostream>
+#include <stdio.h>
+
+//## Configuration du contexte de base JRO IC SRO DT 23805
+extern sql_context ctxRevMain;
+EXEC SQL CONTEXT USE :ctxRevMain;
+
+EXEC SQL BEGIN DECLARE SECTION;
+
+#define MAX_NB_TPREVOD 1000
+
+int nbInBulk;
+
+struct TPREV_OD {
+		
+        int tranche_no;
+        char dpt_date[11];
+        varchar orig[6];
+        varchar dest[6];
+        varchar class_of_service[3];
+		//DM7978 - JLA - Ajout du num_palier
+		int num_palier;
+        int nest_level;
+        char date_od[11];
+        int nb_voyageurs;
+        int market_id;
+        int revenu;
+        int type_flag;
+        char date_fichier[11];
+        int heure_fichier;
+//DM5882.1 :sous-contingentement ( scx ) pour nestlevel =0
+        int scx;
+//
+      } pTpRevODTable[MAX_NB_TPREVOD];
+
+struct TPREV_NON_TRAITE {
+		
+        int tranche_no;
+        char dpt_date[11];
+        varchar orig[6];
+        varchar dest[6];
+        varchar class_of_service[3];
+		//DM7978 - JLA - Ajout du num_palier
+		int num_palier;
+        int nest_level;
+        char date_od[11];
+        int nb_voyageurs;
+        int revenu;
+        char date_fichier[11];
+        int heure_fichier;
+//DM5882.1 :sous-contingentement ( scx ) pour nestlevel =0
+        int scx;
+		// JRO -IC SRO - DT 23805 - Ajout flag is train
+       int isTrain; 
+      } pTpRevNTTable[MAX_NB_TPREVOD];
+
+EXEC SQL END DECLARE SECTION;
+
+
+
+YmRevMapTpOD::YmRevMapTpOD()
+{
+}
+
+YmRevMapTpOD::~YmRevMapTpOD()
+{
+   Clear();
+}
+
+void YmRevMapTpOD::Clear()
+{
+    MapTpODType::iterator iPos = _MapTpOD.begin();
+    MapTpODType::iterator iFin = _MapTpOD.end();
+
+    YmRevTpOD* pTpOD;
+    while (iPos!=iFin)
+       {
+       pTpOD =iPos->second;
+       delete pTpOD;
+       iPos++;
+       }
+    _MapTpOD.clear();
+}
+// DM 7978 - JLA - Ajout du Pipe pour différencier chaque chiffre qui peuvent de 3 à 1 caractères 
+void YmRevMapTpOD::Add (YmRevTpOD* pTpOD)
+{
+  string skey;
+  char cTrNo[10];
+
+  sprintf (cTrNo, "%d", pTpOD->getTrancheNo());
+   skey = cTrNo;
+
+
+
+  skey += pTpOD->getDateOd();
+  skey += pTpOD->getOrig();
+  skey += pTpOD->getDest();
+  skey += pTpOD->getClassOfService();
+  //DM7978 - JLA - Ajout du num_palier
+  sprintf (cTrNo, "%d",  pTpOD->getNumPalier());
+  skey += cTrNo;
+  skey+="|";
+  sprintf (cTrNo, "%d", pTpOD->getNestLevel());
+  skey += cTrNo;
+  skey+="|";
+  //DM7978 - JLA - FIN
+//DM5882.1 :sous-contingentement ( scx ) pour nestlevel =0
+  sprintf (cTrNo, "%d", pTpOD->getScx());
+  skey += cTrNo;
+// JRO -IC SRO - DT 23805 - Ajout flag is train
+	sprintf (cTrNo, "%d", pTpOD->getIsTrain());
+    skey += cTrNo;
+
+  _MapTpOD[skey] = pTpOD;
+}
+//DM7978 - JLA - Ajout du num_palier - Ajout du Pipe pour différencier chaque chiffre qui peuvent de 3 à 1 caractères 
+
+YmRevTpOD* YmRevMapTpOD::isInMap(int tranche_no, char* date_od, string orig, string dest, string class_of_service,int num_palier,
+                                 int nest_level,int scx , int isTrain) //retourne un pointeur sur YmRevTpOD si deja present
+    {
+    MapTpODType::iterator iPos;
+    YmRevTpOD* pTpOD;
+
+	
+    char cTrNo[10];
+
+	  sprintf (cTrNo, "%d", tranche_no);
+	string skey = cTrNo;
+  
+ 
+
+    skey += date_od;
+    skey += orig;
+    skey += dest;
+    skey += class_of_service;
+	//DM7978 - JLA - Ajout du num_palier
+	sprintf (cTrNo, "%d", num_palier);
+	skey += cTrNo;
+	skey+="|";
+    sprintf (cTrNo, "%d", nest_level);
+    skey += cTrNo;
+	skey+="|";
+	//DM7978 - JLA - FIN
+//DM5882.1 :sous-contingentement ( scx ) pour nestlevel =0
+    sprintf (cTrNo, "%d", scx);
+    skey += cTrNo;
+	//DM7978 - JLA - Ajout du num_palier
+// JRO -IC SRO - DT 23805 - Ajout flag is train
+	sprintf (cTrNo, "%d", isTrain);
+    skey += cTrNo;
+    iPos = _MapTpOD.find (skey);
+    if (iPos == _MapTpOD.end())
+      return NULL;
+
+    pTpOD = iPos->second;
+    return pTpOD;
+    }
+
+
+// code Obsolete, cette fonction n'est jamais utilisée JRO
+void YmRevMapTpOD::InsertAndPurge()
+{
+  int totalRevenu = 0;
+  int totalPassagers = 0;
+  cout<<DonneHeure()<<" Ecriture de "<<_MapTpOD.size()<<" lignes dans TPREV_OD"<<endl;
+  EXEC SQL WHENEVER SQLERROR DO sql_error  ("INSERT IN TPREV_OD en erreur", 0);
+  while (_MapTpOD.size())
+  {
+    memset (pTpRevODTable, 0, sizeof (pTpRevODTable));
+    YmRevTpOD* pTpOD;
+    nbInBulk = MAX_NB_TPREVOD;
+    if (_MapTpOD.size() < nbInBulk)
+      nbInBulk = _MapTpOD.size();
+  
+    MapTpODType::iterator iPos = _MapTpOD.begin();
+    int i = 0;
+    while (i < nbInBulk)
+    {
+      pTpOD = iPos->second;
+
+	
+      pTpRevODTable[i].tranche_no = pTpOD->getTrancheNo();
+      strcpy (pTpRevODTable[i].dpt_date, pTpOD->getDptDate());
+      strcpy ((char*)pTpRevODTable[i].orig.arr, pTpOD->getOrig().c_str());
+      pTpRevODTable[i].orig.len = pTpOD->getOrig().size();
+      strcpy ((char*)pTpRevODTable[i].dest.arr, pTpOD->getDest().c_str());
+      pTpRevODTable[i].dest.len = pTpOD->getDest().size();
+      strcpy ((char*)pTpRevODTable[i].class_of_service.arr, pTpOD->getClassOfService().c_str());
+      pTpRevODTable[i].class_of_service.len = pTpOD->getClassOfService().size();
+	  //DM7978 - JLA - Ajout du num_palier
+	  pTpRevODTable[i].num_palier = pTpOD->getNumPalier();
+      pTpRevODTable[i].nest_level = pTpOD->getNestLevel();
+//DM5882.1 :sous-contingentement ( scx ) pour nestlevel =0
+      pTpRevODTable[i].scx = pTpOD->getScx();
+//
+
+      strcpy (pTpRevODTable[i].date_od, pTpOD->getDateOd());
+      pTpRevODTable[i].nb_voyageurs = pTpOD->getNbVoyageurs();
+      pTpRevODTable[i].market_id = 0;
+      pTpRevODTable[i].revenu = pTpOD->getRevenu();
+      pTpRevODTable[i].type_flag = pTpOD->getTypeFlag();
+      strcpy (pTpRevODTable[i].date_fichier, pTpOD->getDateFichier());
+      pTpRevODTable[i].heure_fichier = pTpOD->getHeureFichier();
+
+      totalPassagers += pTpOD->getNbVoyageurs();
+      totalRevenu += pTpOD->getRevenu();
+      //cout<<"TPREV_OD: "<<pTpRevODTable[i].tranche_no<<" "<<pTpRevODTable[i].date_od<<" "<<pTpOD->getOrig()<<" "<<pTpOD->getDest()<<" "<<pTpOD->getClassOfService()<<" "<<pTpRevODTable[i].nest_level<<" "<<pTpRevODTable[i].dpt_date<<endl;
+      delete pTpOD;
+      i++;
+      iPos++;
+    } 
+    _MapTpOD.erase (_MapTpOD.begin(), iPos);
+
+    //DM7978 - JLA - Ajout du num_palier
+	
+	
+    EXEC SQL FOR :nbInBulk INSERT INTO TPREV_OD
+         (TRANCHE_NO, DPT_DATE, ORIG, DEST, CLASS_OF_SERVICE, NUM_PALIER, NEST_LEVEL, DATE_OD, NB_VOYAGEURS,
+          MARKET_ID, REVENU, TYPE_FLAG, DATE_FICHIER, HEURE_FICHIER, SCX)
+         values (:pTpRevODTable);
+    EXEC SQL COMMIT WORK;
+    cout<<"t";
+  }
+  cout<<endl;
+  cout<<DonneHeure()<<" Fin insert dans TPREV_OD, totRevenu="<<totalRevenu<<" totPas="<<totalPassagers<<endl;
+}
+
+
+
+void YmRevMapTpOD::InsertTPREVOD()
+{
+  int totalRevenu = 0;
+  int totalPassagers = 0;
+  cout<<DonneHeure()<<" Ecriture dans dans TPREV_OD"<<endl;
+  
+  EXEC SQL WHENEVER SQLERROR DO sql_error  ("INSERT IN TPREV_OD en erreur", 0);
+  MapTpODType::iterator iPos = _MapTpOD.begin();
+  MapTpODType::iterator iFin = _MapTpOD.end();
+
+  YmRevTpOD* pTpOD;
+  nbInBulk = MAX_NB_TPREVOD;
+  int i = 0;
+  int nbl = 0;
+  while (iPos!=iFin)
+  {
+     pTpOD =iPos->second;
+     if (pTpOD->getTypeFlag() != 2)
+     {
+	
+	 
+       pTpRevODTable[i].tranche_no = pTpOD->getTrancheNo();
+	 
+       strcpy (pTpRevODTable[i].dpt_date, pTpOD->getDptDate());
+       strcpy ((char*)pTpRevODTable[i].orig.arr, pTpOD->getOrig().c_str());
+       pTpRevODTable[i].orig.len = pTpOD->getOrig().size();
+       strcpy ((char*)pTpRevODTable[i].dest.arr, pTpOD->getDest().c_str());
+       pTpRevODTable[i].dest.len = pTpOD->getDest().size();
+       strcpy ((char*)pTpRevODTable[i].class_of_service.arr, pTpOD->getClassOfService().c_str());
+       pTpRevODTable[i].class_of_service.len = pTpOD->getClassOfService().size();
+	  //DM7978 - JLA - Ajout du num_palier
+	   pTpRevODTable[i].num_palier = pTpOD->getNumPalier();  
+       pTpRevODTable[i].nest_level = pTpOD->getNestLevel();
+//DM5882.1 :sous-contingentement ( scx ) pour nestlevel =0
+       pTpRevODTable[i].scx = pTpOD->getScx();
+//
+
+       strcpy (pTpRevODTable[i].date_od, pTpOD->getDateOd());
+       pTpRevODTable[i].nb_voyageurs = pTpOD->getNbVoyageurs();
+       pTpRevODTable[i].market_id = 0;
+       pTpRevODTable[i].revenu = pTpOD->getRevenu();
+       pTpRevODTable[i].type_flag = pTpOD->getTypeFlag();
+       strcpy (pTpRevODTable[i].date_fichier, pTpOD->getDateFichier());
+       pTpRevODTable[i].heure_fichier = pTpOD->getHeureFichier();
+
+       totalPassagers += pTpOD->getNbVoyageurs();
+       totalRevenu += pTpOD->getRevenu();
+       i++;
+       nbl ++;
+     }
+     iPos++;
+
+     if (i == nbInBulk)
+     {
+	 	  //DM7978 - JLA - Ajout du num_palier
+		 
+       EXEC SQL FOR :nbInBulk INSERT INTO TPREV_OD
+         ( TRANCHE_NO, DPT_DATE, ORIG, DEST, CLASS_OF_SERVICE, NUM_PALIER, NEST_LEVEL, DATE_OD, NB_VOYAGEURS,
+          MARKET_ID, REVENU, TYPE_FLAG, DATE_FICHIER, HEURE_FICHIER, SCX)
+         values (:pTpRevODTable);
+       EXEC SQL COMMIT WORK;
+       cout<<"t";
+       i = 0;
+     }
+  }
+  if (i)
+  { // On insere le reliquat
+    nbInBulk = i;
+
+		  //DM7978 - JLA - Ajout du num_palier
+    EXEC SQL FOR :nbInBulk INSERT INTO TPREV_OD
+         ( TRANCHE_NO, DPT_DATE, ORIG, DEST, CLASS_OF_SERVICE, NUM_PALIER, NEST_LEVEL, DATE_OD, NB_VOYAGEURS,
+          MARKET_ID, REVENU, TYPE_FLAG, DATE_FICHIER, HEURE_FICHIER, SCX)
+         values (:pTpRevODTable);
+    EXEC SQL COMMIT WORK;
+    cout<<"t";
+  }
+  cout<<endl;
+  cout<<DonneHeure()<<" Fin insert "<<nbl<<" lignes dans TPREV_OD, totRevenu="<<totalRevenu<<" totPas="<<totalPassagers<<endl;
+}
+
+// Mise à jour de rev_segments pour avoir tranche_no en phase avec TPREV_OD
+void YmRevMapTpOD::UpdateRevSegments()
+{
+	EXEC SQL BEGIN DECLARE SECTION;
+       		int inoTrancheFetch=-1;
+		int inoTrainFetch;
+       		varchar vdatedpt_date[11];
+    	EXEC SQL END DECLARE SECTION;
+	
+	EXEC SQL WHENEVER SQLERROR DO sql_error("UPDATE REV SEGMENT en erreur", 0);
+
+	EXEC SQL DECLARE curs CURSOR FOR 
+		SELECT MIN(b.TRANCHE_NO),b.TRAIN_NO, b.DPT_DATE 
+		FROM TPREV_NON_TRAITE a,REV_TRANCHES_LEGS b 
+		WHERE a.IS_TRAIN = 1 AND b.TRAIN_NO =a.TRANCHE_NO AND a.DPT_DATE =b.DPT_DATE GROUP BY b.TRANCHE_NO,b.TRAIN_NO, b.DPT_DATE;
+
+	EXEC SQL OPEN curs;
+	while(1)
+	{	
+	//EXEC SQL WHENEVER NOT FOUND DO break;
+	EXEC SQL WHENEVER SQLERROR  DO break;
+	  
+	EXEC SQL FETCH curs INTO :inoTrancheFetch, :inoTrainFetch, :vdatedpt_date;
+		
+		if (inoTrancheFetch == -1)
+		{
+			break;
+		}
+
+		/*if (inoTrancheFetch >= 0)
+		{
+			cout<<"tranche no = "<< inoTrancheFetch << '\n' << endl;
+			cout<<"train no = "<< inoTrainFetch << '\n' << endl;
+			cout<<"dpt_date = "<< vdatedpt_date.arr << endl;
+		}*/
+
+	
+	EXEC SQL UPDATE REV_SEGMENTS SET TRANCHE_NO=:inoTrancheFetch WHERE TRAIN_NO = :inoTrainFetch AND DATE_DEPART=:vdatedpt_date;
+	//EXEC SQL WHENEVER SQLERROR DO sql_error((char *)"Erreur Update TRANCHE_NO d'un train IC SRO dans REV_SEGMENTS", 0);
+	}
+	EXEC SQL WHENEVER SQLERROR DO sql_error("UPDATE REV SEGMENT en erreur", 0);
+	EXEC SQL CLOSE curs;
+}
+
+void YmRevMapTpOD::InsertTPREVNONTRAITE()
+{
+  int totalRevenu = 0;
+  int totalPassagers = 0;
+  cout<<DonneHeure()<<" Ecriture dans dans TPREV_NON_TRAITE"<<endl;
+  
+  EXEC SQL WHENEVER SQLERROR DO sql_error  ("INSERT IN TPREV_NON_TRAITE en erreur", 0);
+  MapTpODType::iterator iPos = _MapTpOD.begin();
+  MapTpODType::iterator iFin = _MapTpOD.end();
+
+  YmRevTpOD* pTpOD;
+  nbInBulk = MAX_NB_TPREVOD;
+  int i = 0;
+  int nbl = 0;
+  while (iPos!=iFin)
+  {
+     pTpOD =iPos->second;
+     if (pTpOD->getTypeFlag() == 2)
+     {
+		
+	   
+       pTpRevNTTable[i].tranche_no = pTpOD->getTrancheNo();
+       strcpy (pTpRevNTTable[i].dpt_date, pTpOD->getDptDate());
+	
+	   
+       strcpy ((char*)pTpRevNTTable[i].orig.arr, pTpOD->getOrig().c_str());
+       pTpRevNTTable[i].orig.len = pTpOD->getOrig().size();
+       strcpy ((char*)pTpRevNTTable[i].dest.arr, pTpOD->getDest().c_str());
+       pTpRevNTTable[i].dest.len = pTpOD->getDest().size();
+       strcpy ((char*)pTpRevNTTable[i].class_of_service.arr, pTpOD->getClassOfService().c_str());
+       pTpRevNTTable[i].class_of_service.len = pTpOD->getClassOfService().size();
+	   //DM7978 - JLA - Ajout du num_palier
+	   pTpRevNTTable[i].num_palier = pTpOD->getNumPalier();
+       pTpRevNTTable[i].nest_level = pTpOD->getNestLevel();
+//DM5882.1 :sous-contingentement ( scx ) pour nestlevel =0
+       pTpRevNTTable[i].scx = pTpOD->getScx();
+       strcpy (pTpRevNTTable[i].date_od, pTpOD->getDateOd());
+       pTpRevNTTable[i].nb_voyageurs = pTpOD->getNbVoyageurs();
+       pTpRevNTTable[i].revenu = pTpOD->getRevenu();
+       strcpy (pTpRevNTTable[i].date_fichier, pTpOD->getDateFichier());
+       pTpRevNTTable[i].heure_fichier = pTpOD->getHeureFichier();
+//DT23805 JRO -IC SRO - Ajout flag ISNOTRAIN
+		pTpRevNTTable[i].isTrain = pTpOD->getIsTrain(); 
+       totalPassagers += pTpOD->getNbVoyageurs();
+       totalRevenu += pTpOD->getRevenu();
+       i++;
+       nbl ++;
+     }
+     iPos++;
+     if (i == nbInBulk)
+     {
+	 //DM7978 - JLA - Ajout du num_palier 
+	// JRO -IC SRO - DT 23805 - Ajout de la colonne flag IS_TRAIN
+       EXEC SQL FOR :nbInBulk INSERT INTO TPREV_NON_TRAITE
+         (TRANCHE_NO, DPT_DATE, ORIG, DEST, CLASS_OF_SERVICE, NUM_PALIER, NEST_LEVEL, DATE_OD, NB_VOYAGEURS,
+          REVENU, DATE_FICHIER, HEURE_FICHIER, SCX, IS_TRAIN)
+         values (:pTpRevNTTable);
+       EXEC SQL COMMIT WORK;
+       cout<<"t";
+       i = 0;
+     }
+  }
+  //EXEC SQL WHENEVER SQLERROR DO sql_error  ("INSERT IN TPREV_NON_TRAITE en erreur", 0);
+  if (i)
+  { // On insere le reliquat
+    nbInBulk = i;
+	//DM7978 - JLA - Ajout du num_palier
+	//DT23805 JRO -IC SRO - Ajout flag IS_TRAIN
+    EXEC SQL FOR :nbInBulk INSERT INTO TPREV_NON_TRAITE
+         (TRANCHE_NO, DPT_DATE, ORIG, DEST, CLASS_OF_SERVICE, NUM_PALIER, NEST_LEVEL, DATE_OD, NB_VOYAGEURS,
+          REVENU, DATE_FICHIER, HEURE_FICHIER, SCX, IS_TRAIN)
+         values (:pTpRevNTTable);
+    EXEC SQL COMMIT WORK;
+    cout<<"t";
+  }
+  cout<<endl;
+  cout<<DonneHeure()<<" Fin insert "<<nbl<<" lignes dans TPREV_NON_TRAITE, totRevenu="<<totalRevenu<<" totPas="<<totalPassagers<<endl;
+}
